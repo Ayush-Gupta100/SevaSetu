@@ -7,10 +7,11 @@ from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = os.getenv("NEON_DB", os.getenv("DATABASE_URL", "sqlite:///backend.db"))
 
-engine = create_engine(
-	DATABASE_URL,
-	pool_pre_ping=True,
-)
+engine_kwargs = {"pool_pre_ping": True}
+if DATABASE_URL.startswith("sqlite"):
+	engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -25,6 +26,9 @@ def get_db():
 
 
 def init_db() -> None:
-	from models.models import Base
+	try:
+		from backend.models.models import Base
+	except ImportError:
+		from models.models import Base
 
 	Base.metadata.create_all(bind=engine)

@@ -96,7 +96,7 @@ class User(Base, TimestampMixin):
 	resource_allocations = relationship("ResourceAllocation", back_populates="allocated_by_user")
 	ai_matches = relationship("AiMatch", back_populates="user")
 	notifications = relationship("Notification", back_populates="user")
- 	donations = relationship("Donation", back_populates="donor")
+	donations = relationship("Donation", back_populates="donor")
 
 
 class NgoMember(Base):
