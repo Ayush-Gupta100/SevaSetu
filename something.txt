@@ -1,17 +1,11 @@
-🧑 users
+Backend
+Python
 
-id (PK)
-name
-email
-phone
-password_hash
-role ENUM('community','volunteer','ngo_member','ngo_admin')
-ngo_id (FK, nullable)
-location_lat
-location_lng
-created_at
-updated_at
-🏢 ngos
+frontend
+VITE 
+
+🧑 USERS & NGO SYSTEM
+ngos
 id (PK)
 name
 registration_number
@@ -23,133 +17,195 @@ state
 verified BOOLEAN
 trust_score FLOAT
 created_at
-👨‍👩‍👧 ngo_members
+users
 id (PK)
-user_id (FK)
-ngo_id (FK)
+name
+email
+phone
+password_hash
+role ENUM('community','volunteer','ngo_member','ngo_admin')
+ngo_id (FK → ngos.id, nullable)
+location_id (FK → locations.id)
+created_at
+ngo_members
+id (PK)
+user_id (FK → users.id)
+ngo_id (FK → ngos.id)
 role ENUM('admin','manager','field_worker')
 joined_at
-📝 2. PROBLEM SYSTEM
-🚨 problems
+📍 LOCATION SYSTEM
+locations
+id (PK)
+latitude DECIMAL(9,6)
+longitude DECIMAL(9,6)
+address
+city
+state
+country
+pincode
+🚨 PROBLEM SYSTEM
+problems
 id (PK)
 title
 description
-category ENUM('water','road','sanitation','electricity','other')
-location_lat
-location_lng
-reported_by (FK users.id)
+category
+location_id (FK → locations.id)
+reported_by (FK → users.id)
 status ENUM('pending','verified','in_progress','resolved','rejected')
 priority_score FLOAT
 ai_category
 ai_confidence
 created_at
-updated_at
-📸 problem_proofs
+problem_proofs
 id (PK)
-problem_id (FK)
+problem_id (FK → problems.id)
 file_url
-file_type ENUM('image','video','audio')
-uploaded_by (FK users.id)
+file_type
+uploaded_by (FK → users.id)
 created_at
-🔍 problem_verification
+problem_verification
 id (PK)
-problem_id (FK)
-verified_by (FK users.id)
+problem_id (FK → problems.id)
+verified_by (FK → users.id)
 status ENUM('approved','rejected')
 notes
 created_at
-📋 3. TASK SYSTEM
-📌 tasks
+📋 TASK SYSTEM
+tasks
 id (PK)
-problem_id (FK)
+problem_id (FK → problems.id)
 title
 description
-assigned_by (FK users.id)
+assigned_by (FK → users.id)
 status ENUM('open','assigned','in_progress','completed')
 deadline
 created_at
-🤝 task_assignments
+task_assignments
 id (PK)
-task_id (FK)
-user_id (FK)
+task_id (FK → tasks.id)
+user_id (FK → users.id)
 role ENUM('volunteer','worker')
 status ENUM('assigned','accepted','completed')
 assigned_at
-📸 task_proofs
+task_proofs
 id (PK)
-task_id (FK)
+task_id (FK → tasks.id)
 file_url
 description
-uploaded_by (FK users.id)
+uploaded_by (FK → users.id)
 created_at
-📊 4. SURVEY + SKILL SYSTEM
-📋 surveys
-id (PK)
-user_id (FK)
-availability
-interests TEXT
-created_at
-🛠 skills
+🛠 SURVEY & SKILLS
+skills
 id (PK)
 name
 category
-🔗 user_skills
+user_skills
 id (PK)
-user_id (FK)
-skill_id (FK)
-proficiency_level ENUM('basic','intermediate','advanced')
-📦 5. RESOURCE SYSTEM
-🧰 resources
+user_id (FK → users.id)
+skill_id (FK → skills.id)
+proficiency_level
+surveys
+id (PK)
+user_id (FK → users.id)
+availability
+interests
+created_at
+📦 RESOURCE SYSTEM
+resources
 id (PK)
 name
 type ENUM('human','financial','material')
 quantity
 owner_type ENUM('ngo','user')
 owner_id
-location_lat
-location_lng
+location_id (FK → locations.id)
 created_at
-🔄 resource_allocations
+resource_allocations
 id (PK)
-resource_id (FK)
-task_id (FK)
-allocated_by (FK users.id)
+resource_id (FK → resources.id)
+task_id (FK → tasks.id)
+allocated_by (FK → users.id)
 quantity_used
 created_at
-🤖 6. AI SYSTEM TABLES (VERY IMPORTANT)
-🧠 ai_insights
+🤖 AI + ANALYTICS
+ai_matches
 id (PK)
-type ENUM('priority','matching','prediction')
-reference_id (problem/task/user)
-data JSON
+problem_id (FK → problems.id)
+user_id (FK → users.id)
+match_score
+reason
 created_at
-🤝 ai_matches
+error_analytics
 id (PK)
-problem_id (FK)
-user_id (FK)
-match_score FLOAT
-reason TEXT
+error_code
+module
+count
+last_occurred
+ngo_id (nullable)
+context JSON
+📨 NOTIFICATIONS
+notifications
+id (PK)
+user_id (FK → users.id)
+type ENUM('sms','whatsapp','push')
+title
+message
+status ENUM('pending','sent','failed')
 created_at
-📊 7. DASHBOARD / ANALYTICS SUPPORT
-📈 activity_logs
-id (PK)
-user_id (FK)
-action_type
-reference_id
-metadata JSON
-created_at
-🔐 8. NGO BULK IMPORT (Excel + OCR)
-📥 import_batches
-id (PK)
-ngo_id (FK)
-file_url
-type ENUM('excel','ocr')
-status ENUM('processing','completed','failed')
-created_at
-📄 import_records
-id (PK)
-batch_id (FK)
-raw_data JSON
-processed_data JSON
-status ENUM('valid','invalid')
-error_message
+sent_at
+🔗 2. HOW EVERYTHING CONNECTS (PK / FK EXPLAINED)
+🧠 Core Concept
+
+Primary Key (PK) = unique identifier of a table
+Foreign Key (FK) = reference to another table
+
+🔄 Relationship Flow (Important)
+👥 Users ↔ NGOs
+users.ngo_id → ngos.id
+A user belongs to an NGO
+NGO has many users
+
+👉 One-to-Many
+
+📍 Locations ↔ Everything
+users.location_id → locations.id
+problems.location_id → locations.id
+resources.location_id → locations.id
+
+👉 One location reused everywhere
+
+🚨 Problems ↔ Users
+problems.reported_by → users.id
+
+👉 One user can report many problems
+
+📋 Tasks ↔ Problems
+tasks.problem_id → problems.id
+
+👉 One problem → multiple tasks
+
+🤝 Task Assignments
+task_assignments.task_id → tasks.id
+task_assignments.user_id → users.id
+
+👉 Many users ↔ many tasks (Many-to-Many bridge table)
+
+🛠 Skills ↔ Users
+user_skills.user_id → users.id
+user_skills.skill_id → skills.id
+
+👉 Many-to-Many relationship
+
+📦 Resources ↔ Tasks
+resource_allocations.resource_id → resources.id
+resource_allocations.task_id → tasks.id
+🤖 AI Matches
+ai_matches.problem_id → problems.id
+ai_matches.user_id → users.id
+
+👉 AI links problems to users
+
+🔔 Notifications
+notifications.user_id → users.id
+
+👉 Each notification belongs to a user
