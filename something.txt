@@ -1,0 +1,155 @@
+🧑 users
+
+id (PK)
+name
+email
+phone
+password_hash
+role ENUM('community','volunteer','ngo_member','ngo_admin')
+ngo_id (FK, nullable)
+location_lat
+location_lng
+created_at
+updated_at
+🏢 ngos
+id (PK)
+name
+registration_number
+email
+phone
+address
+city
+state
+verified BOOLEAN
+trust_score FLOAT
+created_at
+👨‍👩‍👧 ngo_members
+id (PK)
+user_id (FK)
+ngo_id (FK)
+role ENUM('admin','manager','field_worker')
+joined_at
+📝 2. PROBLEM SYSTEM
+🚨 problems
+id (PK)
+title
+description
+category ENUM('water','road','sanitation','electricity','other')
+location_lat
+location_lng
+reported_by (FK users.id)
+status ENUM('pending','verified','in_progress','resolved','rejected')
+priority_score FLOAT
+ai_category
+ai_confidence
+created_at
+updated_at
+📸 problem_proofs
+id (PK)
+problem_id (FK)
+file_url
+file_type ENUM('image','video','audio')
+uploaded_by (FK users.id)
+created_at
+🔍 problem_verification
+id (PK)
+problem_id (FK)
+verified_by (FK users.id)
+status ENUM('approved','rejected')
+notes
+created_at
+📋 3. TASK SYSTEM
+📌 tasks
+id (PK)
+problem_id (FK)
+title
+description
+assigned_by (FK users.id)
+status ENUM('open','assigned','in_progress','completed')
+deadline
+created_at
+🤝 task_assignments
+id (PK)
+task_id (FK)
+user_id (FK)
+role ENUM('volunteer','worker')
+status ENUM('assigned','accepted','completed')
+assigned_at
+📸 task_proofs
+id (PK)
+task_id (FK)
+file_url
+description
+uploaded_by (FK users.id)
+created_at
+📊 4. SURVEY + SKILL SYSTEM
+📋 surveys
+id (PK)
+user_id (FK)
+availability
+interests TEXT
+created_at
+🛠 skills
+id (PK)
+name
+category
+🔗 user_skills
+id (PK)
+user_id (FK)
+skill_id (FK)
+proficiency_level ENUM('basic','intermediate','advanced')
+📦 5. RESOURCE SYSTEM
+🧰 resources
+id (PK)
+name
+type ENUM('human','financial','material')
+quantity
+owner_type ENUM('ngo','user')
+owner_id
+location_lat
+location_lng
+created_at
+🔄 resource_allocations
+id (PK)
+resource_id (FK)
+task_id (FK)
+allocated_by (FK users.id)
+quantity_used
+created_at
+🤖 6. AI SYSTEM TABLES (VERY IMPORTANT)
+🧠 ai_insights
+id (PK)
+type ENUM('priority','matching','prediction')
+reference_id (problem/task/user)
+data JSON
+created_at
+🤝 ai_matches
+id (PK)
+problem_id (FK)
+user_id (FK)
+match_score FLOAT
+reason TEXT
+created_at
+📊 7. DASHBOARD / ANALYTICS SUPPORT
+📈 activity_logs
+id (PK)
+user_id (FK)
+action_type
+reference_id
+metadata JSON
+created_at
+🔐 8. NGO BULK IMPORT (Excel + OCR)
+📥 import_batches
+id (PK)
+ngo_id (FK)
+file_url
+type ENUM('excel','ocr')
+status ENUM('processing','completed','failed')
+created_at
+📄 import_records
+id (PK)
+batch_id (FK)
+raw_data JSON
+processed_data JSON
+status ENUM('valid','invalid')
+error_message
