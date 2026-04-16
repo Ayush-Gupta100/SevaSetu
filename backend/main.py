@@ -1,10 +1,18 @@
+from fastapi import FastAPI
+
 from config.db import init_db
+from routes.routes import api_router
 
 
-def main() -> None:
+app = FastAPI(title="Community Coordination API", version="1.0.0")
+app.include_router(api_router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+def startup_event() -> None:
 	init_db()
-	print("Database tables initialized successfully.")
 
 
-if __name__ == "__main__":
-	main()
+@app.get("/")
+def healthcheck() -> dict:
+	return {"status": "ok", "service": "community-coordination-backend"}
