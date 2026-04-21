@@ -36,6 +36,7 @@ def create_task(payload: TaskCreateRequest, current_user: User):
 def get_tasks(
 	status_filter: str | None,
 	nearby: bool,
+	mine: bool,
 	page: int,
 	limit: int,
 	current_user: User,
@@ -46,6 +47,11 @@ def get_tasks(
 
 		if status_filter:
 			query = query.filter(Task.status == status_filter)
+
+		if mine:
+			query = query.join(TaskAssignment, TaskAssignment.task_id == Task.id).filter(
+				TaskAssignment.user_id == current_user.id
+			)
 
 		if nearby:
 			if not current_user.location_id:

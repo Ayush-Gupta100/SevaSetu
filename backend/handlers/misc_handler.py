@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -13,10 +14,47 @@ _IMPORT_STORE: dict[str, dict] = {}
 
 def get_ai_matches(problem_id: int | None):
 	with get_db() as db:
-		query = db.query(AiMatch)
-		if problem_id is not None:
-			query = query.filter(AiMatch.problem_id == problem_id)
-		return query.order_by(AiMatch.created_at.desc()).all()
+		if not problem_id:
+			return db.query(AiMatch).order_by(AiMatch.match_score.desc()).all()
+		
+		problem = db.query(Problem).filter(Problem.id == problem_id).first()
+		if not problem:
+			raise HTTPException(status_code=404, detail="Problem not found")
+
+		# 1. Fetch all volunteers
+		volunteers = db.query(User).filter(User.role == "volunteer").all()
+		
+		matches = []
+		for v in volunteers:
+			# Mock Skill Match (Check if user has any skills matching problem category)
+			skill_score = 0.5
+			if v.user_skills and problem.category:
+				skill_score = 1.0 if any(
+					(us.skill and us.skill.name and us.skill.name.lower() in problem.category.lower())
+					for us in v.user_skills
+				) else 0.5
+			
+			# Mock Distance (In a real app, use Haversine with v.location and problem.location)
+			# For now, generate a semi-random distance score
+			distance_score = 0.8 # Placeholder
+			
+			# Urgency Score
+			urgency_score = min(problem.priority_score / 10.0, 1.0)
+			
+			final_score = (skill_score * 0.4) + (distance_score * 0.3) + (urgency_score * 0.3)
+			
+			matches.append({
+				"id": 0,
+				"user_id": v.id,
+				"problem_id": problem.id,
+				"match_score": round(final_score, 2),
+				"reason": f"Match based on skill ({skill_score}), proximity ({distance_score}), and urgency ({urgency_score})",
+				"created_at": datetime.utcnow(),
+			})
+		
+		# Sort by score
+		matches.sort(key=lambda x: x["match_score"], reverse=True)
+		return matches[:10]
 
 
 def get_ai_insights():
@@ -26,14 +64,15 @@ def get_ai_insights():
 		open_tasks = db.query(Task).filter(Task.status.in_(["open", "assigned", "in_progress"])).count()
 		completed_tasks = db.query(Task).filter(Task.status == "completed").count()
 		total_matches = db.query(AiMatch).count()
-		avg_match_score = db.query(func.avg(AiMatch.match_score)).scalar() or 0.0
+		avg_match_score = db.query(func.avg(AiMatch.match_score)).scalar()
+		
 		return {
 			"total_problems": total_problems,
 			"verified_problems": verified_problems,
 			"open_tasks": open_tasks,
 			"completed_tasks": completed_tasks,
 			"total_matches": total_matches,
-			"average_match_score": round(float(avg_match_score), 3),
+			"average_match_score": float(avg_match_score or 0.0),
 		}
 
 
@@ -104,7 +143,24 @@ def public_join(name: str, email: str, phone: str | None, password: str):
 	with get_db() as db:
 		existing = db.query(User).filter(User.email == email).first()
 		if existing:
-			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered.")
+			if existing.role == "volunteer":
+				return {"message": "You are already registered as a volunteer."}
+
+			if existing.role in {"ngo_admin", "ngo_member"}:
+				if phone and not existing.phone:
+					existing.phone = phone
+					db.add(existing)
+					db.commit()
+				return {
+					"message": "Your NGO account remains unchanged. You can participate through task assignments without switching roles."
+				}
+
+			existing.role = "volunteer"
+			if phone and not existing.phone:
+				existing.phone = phone
+			db.add(existing)
+			db.commit()
+			return {"message": "Your account has been upgraded to volunteer."}
 
 		user = User(
 			name=name,
@@ -116,3 +172,23 @@ def public_join(name: str, email: str, phone: str | None, password: str):
 		db.add(user)
 		db.commit()
 		return {"message": "Volunteer registration successful."}
+
+
+def volunteer_opt_in(current_user: User):
+	with get_db() as db:
+		user = db.query(User).filter(User.id == current_user.id).first()
+		if not user:
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+		if user.role == "volunteer":
+			return {"message": "You are already registered as a volunteer."}
+
+		if user.role in {"ngo_admin", "ngo_member"}:
+			return {
+				"message": "Your NGO role remains unchanged. You can contribute through assigned tasks."
+			}
+
+		user.role = "volunteer"
+		db.add(user)
+		db.commit()
+		return {"message": "You are now registered as a volunteer."}

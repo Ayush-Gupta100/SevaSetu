@@ -1,0 +1,230 @@
+import React, { useState } from 'react'
+import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { ArrowUpRight, ArrowDownRight, Calendar, Filter, Loader2 } from 'lucide-react'
+import { cn } from '../lib/utils'
+import { api } from '../lib/api'
+
+// Fallback Mock Data (used while loading or if API fails)
+const fallbackStatsData = [
+  { title: 'Total Revenue', value: '24.6k', change: '+13%', trend: 'up' },
+  { title: 'Fund Utilization Rate', value: '81.1%', change: '+8%', trend: 'up' },
+  { title: 'Grant Application Success Rate', value: '42%', change: '+10%', trend: 'up' },
+  { title: 'Budget vs Actuals', value: '1.9', change: '+2%', trend: 'up' },
+  { title: 'Administrative Cost Ratio', value: '3.2', change: '+10%', trend: 'up' },
+  { title: 'Program Efficiency Rate', value: '55.9%', change: '+2%', trend: 'up' },
+]
+
+const areaData = [
+
+  { name: '1', budget: 1600, actual: 2600 },
+  { name: '4', budget: 1500, actual: 3000 },
+  { name: '8', budget: 2100, actual: 2700 },
+  { name: '12', budget: 2800, actual: 3500 },
+  { name: '16', budget: 2200, actual: 2800 },
+  { name: '20', budget: 2600, actual: 2400 },
+  { name: '24', budget: 1000, actual: 2600 },
+]
+
+const barData = [
+  { name: 'Mon', donations: 4 },
+  { name: 'Tue', donations: 6 },
+  { name: 'Wed', donations: 3.5 },
+  { name: 'Thu', donations: 2 },
+  { name: 'Fri', donations: 3 },
+  { name: 'Sat', donations: 4 },
+  { name: 'Sun', donations: 5.5 },
+]
+
+export function Dashboard() {
+  const storedId = localStorage.getItem('ngo_id');
+  const ngoId = storedId && storedId !== 'null' ? parseInt(storedId, 10) : 0;
+
+  // 1. Fetch Wallet Data
+  const { data: walletData, isLoading: isWalletLoading } = useQuery({
+    queryKey: ['wallet', ngoId],
+    queryFn: () => api.getWallet(ngoId.toString()),
+    enabled: ngoId > 0,
+    retry: 1 
+  });
+
+  // 2. Fetch Donations Data
+  const { data: donationsData, isLoading: isDonationsLoading } = useQuery({
+    queryKey: ['donations'],
+    queryFn: api.getDonations,
+    retry: 1
+  });
+
+  // If real data exists, map it. Otherwise use fallback for the visual preview.
+  const displayStats = walletData?.stats || fallbackStatsData;
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const userId = (form.elements.namedItem('userId') as HTMLInputElement).value;
+    const role = (form.elements.namedItem('role') as HTMLSelectElement).value;
+    try {
+      await api.addNgoMember(ngoId.toString(), { user_id: parseInt(userId, 10), role });
+      alert('Member added successfully!');
+      form.reset();
+    } catch (err: any) {
+      alert('Failed to add member: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground/90">Nonprofit Dashboard</h1>
+          {(isWalletLoading || isDonationsLoading) && (
+            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          )}
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="glass rounded-lg p-1 flex items-center bg-surface/50">
+            <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md hover:bg-white/5 transition-colors">
+              <Calendar className="w-4 h-4 text-muted" />
+              This Week
+            </button>
+          </div>
+          <div className="glass rounded-lg p-1 flex items-center bg-surface/50">
+            <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md hover:bg-white/5 transition-colors">
+              Services: All
+              <Filter className="w-3 h-3 text-muted ml-1" />
+            </button>
+          </div>
+          <div className="glass rounded-lg p-1 flex items-center bg-surface/50">
+            <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md hover:bg-white/5 transition-colors">
+              Posts: All
+              <Filter className="w-3 h-3 text-muted ml-1" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {displayStats.map((stat: any, i: number) => (
+          <motion.div
+            key={stat.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1, duration: 0.4 }}
+            className="glass rounded-2xl p-5 hover:bg-white/[0.07] transition-all duration-300 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h3 className="text-xs font-medium text-muted mb-3 relative z-10">{stat.title}</h3>
+            <div className="flex flex-col gap-1 relative z-10">
+              <span className="text-2xl md:text-3xl font-bold tracking-tight">{stat.value}</span>
+              <div className="flex items-center gap-1">
+                {stat.trend === 'up' ? (
+                  <ArrowUpRight className="w-3 h-3 text-primary" />
+                ) : (
+                  <ArrowDownRight className="w-3 h-3 text-red-500" />
+                )}
+                <span className={cn("text-xs font-medium", stat.trend === 'up' ? "text-primary" : "text-red-500")}>
+                  {stat.change}
+                </span>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted/70 mt-4 relative z-10">vs previous 7 days</p>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          className="glass rounded-2xl p-6 h-[400px] flex flex-col"
+        >
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-muted">Budget vs Actuals</h3>
+          </div>
+          <div className="flex-1 w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={areaData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00d1b2" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#00d1b2" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorBudget" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Area type="monotone" dataKey="actual" stroke="#00d1b2" strokeWidth={2} fillOpacity={1} fill="url(#colorActual)" />
+                <Area type="monotone" dataKey="budget" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorBudget)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+          className="glass rounded-2xl p-6 h-[400px] flex flex-col"
+        >
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-muted">Donations Over Time</h3>
+          </div>
+          <div className="flex-1 w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={32}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                />
+                <Bar dataKey="donations" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="glass rounded-2xl p-6 lg:col-span-2"
+        >
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground">Team Management</h3>
+          </div>
+          <form className="flex flex-col sm:flex-row gap-4 items-end" onSubmit={handleAddMember}>
+            <div className="flex-1 w-full">
+              <label className="block text-sm font-medium text-muted mb-1">User ID</label>
+              <input name="userId" type="number" required placeholder="Enter Volunteer/Member User ID" className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+            </div>
+            <div className="flex-1 w-full">
+              <label className="block text-sm font-medium text-muted mb-1">Role</label>
+              <select name="role" required className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                <option value="field_worker">Field Worker</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <button type="submit" className="w-full sm:w-auto px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition-colors">
+              Add Member
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

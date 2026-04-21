@@ -19,7 +19,6 @@ def create_donation(payload: DonationCreateRequest, current_user: User):
 			ngo_id=payload.ngo_id,
 			amount=payload.amount,
 			currency=payload.currency,
-			purpose=payload.purpose,
 			status="pending",
 		)
 		db.add(donation)

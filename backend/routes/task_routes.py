@@ -28,11 +28,12 @@ def create_task_route(
 def list_tasks_route(
 	status: str | None = Query(default=None),
 	nearby: bool = Query(default=False),
+	mine: bool = Query(default=False),
 	page: int = Query(default=1, ge=1),
 	limit: int = Query(default=10, ge=1, le=100),
 	current_user=Depends(get_current_user),
 ):
-	return get_tasks(status, nearby, page, limit, current_user)
+	return get_tasks(status, nearby, mine, page, limit, current_user)
 
 
 @task_router.post("/{task_id}/assign", response_model=TaskAcceptResponse)

@@ -46,6 +46,7 @@ class Ngo(Base, TimestampMixin):
 	wallet = relationship("NgoWallet", back_populates="ngo", uselist=False)
 	donations = relationship("Donation", back_populates="ngo")
 	ledger_entries = relationship("LedgerEntry", back_populates="ngo")
+	financial_ledger_entries = relationship("FinancialLedger", back_populates="ngo")
 	task_expenses = relationship("TaskExpense", back_populates="ngo")
 	errors = relationship("ErrorAnalytics", back_populates="ngo")
 
@@ -148,6 +149,9 @@ class ProblemProof(Base, TimestampMixin):
 	problem_id = Column(Integer, ForeignKey("problems.id"), nullable=False)
 	file_url = Column(Text, nullable=False)
 	file_type = Column(String(120), nullable=True)
+	file_size = Column(Integer, nullable=True)
+	s3_bucket = Column(String(120), nullable=True)
+	s3_key = Column(String(255), nullable=True)
 	uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
 	problem = relationship("Problem", back_populates="proofs")
@@ -319,15 +323,29 @@ class Donation(Base, TimestampMixin):
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	donor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 	ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)
-	amount = Column(DECIMAL(10, 2), nullable=False)
-	currency = Column(String(8), nullable=False, default="INR")
-	purpose = Column(Text, nullable=True)
-	status = Column(Enum("pending", "completed", "failed", name="donation_status"), nullable=False, default="pending")
+	amount = Column(Float, nullable=False)
+	currency = Column(String(10), nullable=False, default="INR")
+	status = Column(Enum("pending", "completed", "failed", name="donation_status"), default="pending")
 	completed_at = Column(DateTime, nullable=True)
 
-	donor = relationship("User", back_populates="donations")
 	ngo = relationship("Ngo", back_populates="donations")
+	donor = relationship("User", back_populates="donations")
 	payment_transactions = relationship("PaymentTransaction", back_populates="donation")
+
+
+class FinancialLedger(Base, TimestampMixin):
+	__tablename__ = "financial_ledger"
+
+	id = Column(Integer, primary_key=True, autoincrement=True)
+	ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)
+	donation_id = Column(Integer, ForeignKey("donations.id"), nullable=True)
+	transaction_type = Column(Enum("credit", "debit", name="ledger_tx_type"), nullable=False)
+	amount = Column(Float, nullable=False)
+	description = Column(Text, nullable=True)
+	balance_after = Column(Float, nullable=False)
+
+	ngo = relationship("Ngo", back_populates="financial_ledger_entries")
+	donation = relationship("Donation")
 
 
 class PaymentTransaction(Base, TimestampMixin):

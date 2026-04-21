@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-border shadow-sm;
+  }
+  .glass-hover {
+    @apply hover:bg-slate-50 transition-colors duration-300;
+  }
+}

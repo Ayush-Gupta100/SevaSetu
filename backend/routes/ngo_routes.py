@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 
-from handlers.ngo_handler import add_ngo_member, get_ngo_details, list_ngos, register_ngo, verify_ngo
+from handlers.ngo_handler import add_ngo_member, add_ngo_member_by_email, get_ngo_details, list_ngos, register_ngo, verify_ngo
 from internal.auth_dependencies import get_current_user, require_roles
 from internal.schemas.ngo import (
 	AddNgoMemberRequest,
+	AddNgoMemberByEmailRequest,
+	AddNgoMemberByEmailResponse,
 	MessageResponse,
 	NgoCreateRequest,
 	NgoResponse,
@@ -49,3 +51,18 @@ def add_ngo_member_route(
 	current_user=Depends(require_roles("ngo_admin")),
 ):
 	return add_ngo_member(ngo_id, payload, current_user)
+
+
+@ngo_router.post("/{ngo_id}/members/by-email", response_model=AddNgoMemberByEmailResponse)
+def add_ngo_member_by_email_route(
+	ngo_id: int,
+	payload: AddNgoMemberByEmailRequest,
+	current_user=Depends(require_roles("ngo_admin")),
+):
+	return add_ngo_member_by_email(ngo_id, payload, current_user)
+
+
+@ngo_router.get("/{ngo_id}/members")
+def get_ngo_members_route(ngo_id: int, current_user=Depends(get_current_user)):
+	from handlers.ngo_handler import list_ngo_members
+	return list_ngo_members(ngo_id)

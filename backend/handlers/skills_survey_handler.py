@@ -5,30 +5,34 @@ from internal.schemas.skills_survey import AddUserSkillsRequest, SurveyRequest
 from models.models import Skill, Survey, User, UserSkill
 
 
+def upsert_user_skills(db, user_id: int, skills: list):
+	for item in skills:
+		skill = db.query(Skill).filter(Skill.name == item.skill_name).first()
+		if not skill:
+			skill = Skill(name=item.skill_name, category=item.category)
+			db.add(skill)
+			db.flush()
+
+		existing = db.query(UserSkill).filter(
+			UserSkill.user_id == user_id,
+			UserSkill.skill_id == skill.id,
+		).first()
+
+		if existing:
+			existing.proficiency_level = item.proficiency_level
+			db.add(existing)
+		else:
+			user_skill = UserSkill(
+				user_id=user_id,
+				skill_id=skill.id,
+				proficiency_level=item.proficiency_level,
+			)
+			db.add(user_skill)
+
+
 def add_user_skills(payload: AddUserSkillsRequest, current_user: User):
 	with get_db() as db:
-		for item in payload.skills:
-			skill = db.query(Skill).filter(Skill.name == item.skill_name).first()
-			if not skill:
-				skill = Skill(name=item.skill_name, category=item.category)
-				db.add(skill)
-				db.flush()
-
-			existing = db.query(UserSkill).filter(
-				UserSkill.user_id == current_user.id,
-				UserSkill.skill_id == skill.id,
-			).first()
-
-			if existing:
-				existing.proficiency_level = item.proficiency_level
-				db.add(existing)
-			else:
-				user_skill = UserSkill(
-					user_id=current_user.id,
-					skill_id=skill.id,
-					proficiency_level=item.proficiency_level,
-				)
-				db.add(user_skill)
+		upsert_user_skills(db, current_user.id, payload.skills)
 
 		db.commit()
 		return {"message": "Skills updated successfully."}

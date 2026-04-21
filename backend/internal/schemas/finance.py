@@ -9,7 +9,6 @@ class DonationCreateRequest(BaseModel):
 	ngo_id: int
 	amount: Decimal = Field(gt=0)
 	currency: str = "INR"
-	purpose: Optional[str] = None
 
 
 class DonationResponse(BaseModel):
@@ -18,7 +17,6 @@ class DonationResponse(BaseModel):
 	ngo_id: int
 	amount: Decimal
 	currency: str
-	purpose: Optional[str] = None
 	status: str
 	created_at: datetime
 

@@ -11,6 +11,7 @@ from handlers.misc_handler import (
 	import_upload,
 	mark_notification_read,
 	public_join,
+	volunteer_opt_in,
 )
 from internal.auth_dependencies import get_current_user
 from internal.schemas.misc import (
@@ -78,3 +79,8 @@ def public_problems_route():
 @misc_router.post("/public/join", response_model=MessageResponse)
 def public_join_route(payload: PublicJoinRequest):
 	return public_join(payload.name, payload.email, payload.phone, payload.password)
+
+
+@misc_router.post("/public/volunteer-opt-in", response_model=MessageResponse)
+def public_volunteer_opt_in_route(current_user=Depends(get_current_user)):
+	return volunteer_opt_in(current_user)
