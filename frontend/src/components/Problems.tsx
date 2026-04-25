@@ -4,15 +4,9 @@ import { AlertCircle, CheckCircle2, Clock, MapPin, Search } from 'lucide-react'
 import { api } from '../lib/api'
 import { cn } from '../lib/utils'
 
-// Mock fallback
-const mockProblems = [
-  { id: 1, title: 'Water shortage in Sector 4', category: 'water', status: 'pending', priority_score: 8.5, ai_confidence: 92, location: 'Sector 4, Delhi' },
-  { id: 2, title: 'Broken road blocks ambulance', category: 'infrastructure', status: 'verified', priority_score: 9.8, ai_confidence: 88, location: 'Main St, Mumbai' },
-  { id: 3, title: 'Medical supplies needed', category: 'health', status: 'in_progress', priority_score: 7.2, ai_confidence: 95, location: 'Clinic B, Pune' },
-]
 
 export function Problems() {
-  const { data: problemsData, refetch } = useQuery({
+  const { data: problemsData, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['problems'],
     queryFn: () => api.getProblems(),
     retry: 1
@@ -44,7 +38,7 @@ export function Problems() {
     }
   }
 
-  const problems = problemsData || mockProblems
+  const problems = Array.isArray(problemsData) ? problemsData : []
 
   return (
     <div className="space-y-6 pb-20 relative">
@@ -64,6 +58,15 @@ export function Problems() {
         </div>
       </div>
 
+      {isLoading ? (
+        <div className="glass rounded-xl p-5 text-sm text-muted">Loading problems...</div>
+      ) : isError ? (
+        <div className="glass rounded-xl p-5 text-sm text-red-400">
+          Failed to load problems: {(error as any)?.response?.data?.detail || (error as Error)?.message || 'Unknown error'}
+        </div>
+      ) : problems.length === 0 ? (
+        <div className="glass rounded-xl p-5 text-sm text-muted">No problems found yet.</div>
+      ) : (
       <div className="grid gap-4">
         {problems.map((problem: any) => (
           <div key={problem.id} className="glass rounded-xl p-5 hover:bg-white/[0.07] transition-all group relative overflow-hidden">
@@ -108,6 +111,7 @@ export function Problems() {
           </div>
         ))}
       </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
