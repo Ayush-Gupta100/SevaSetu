@@ -1,6 +1,7 @@
 import { Search, Bell } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, clearAuthStorage } from '../lib/api'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Header() {
   const navigate = useNavigate()
@@ -33,6 +34,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4 ml-4">
+        <ThemeToggle className="px-2.5 py-1.5 text-xs shadow-none" />
         <Link to="/notifications" className="relative p-2 rounded-full hover:bg-slate-100 text-muted hover:text-foreground transition-colors">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full ring-2 ring-white"></span>

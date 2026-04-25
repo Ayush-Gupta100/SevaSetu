@@ -3,15 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Package, Activity } from 'lucide-react'
 import { api } from '../lib/api'
 
-const mockInventory = [
-  { id: 1, name: 'Bottled Water', type: 'material', quantity: 500, unit: 'liters', location: 'Main Hub' },
-  { id: 2, name: 'First Aid Kits', type: 'material', quantity: 50, unit: 'boxes', location: 'Warehouse B' },
-  { id: 3, name: 'Rescue Volunteers', type: 'human', quantity: 24, unit: 'people', location: 'City Center' },
-]
-
 export function Inventory() {
   const { data, refetch } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory, retry: 1 })
-  const inventory = data || mockInventory
+  const inventory = Array.isArray(data) ? data : []
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ resource_type_id: 1, quantity_total: '' })
@@ -60,6 +54,12 @@ export function Inventory() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
+            {inventory.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-6 text-center text-sm text-muted">No inventory records found.</td>
+              </tr>
+            )}
+
             {inventory.map((item: any) => (
               <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
                 <td className="px-6 py-4 font-medium text-foreground/90 flex items-center gap-3">
@@ -72,9 +72,22 @@ export function Inventory() {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <div className="w-full max-w-[100px] h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: '100%' }} />
+                      <div
+                        className="h-full bg-primary"
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              Number(item.quantity_total || 0) > 0
+                                ? (Number(item.quantity_available || 0) / Number(item.quantity_total || 0)) * 100
+                                : 0,
+                            ),
+                          )}%`,
+                        }}
+                      />
                     </div>
-                    <span className="font-mono">{item.quantity || item.quantity_available}</span>
+                    <span className="font-mono">{item.quantity_available}</span>
                     <span className="text-muted text-xs">{item.unit || 'units'}</span>
                   </div>
                 </td>

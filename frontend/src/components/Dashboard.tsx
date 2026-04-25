@@ -6,37 +6,6 @@ import { ArrowUpRight, ArrowDownRight, Calendar, Filter, Loader2 } from 'lucide-
 import { cn } from '../lib/utils'
 import { api } from '../lib/api'
 
-// Fallback Mock Data (used while loading or if API fails)
-const fallbackStatsData = [
-  { title: 'Total Revenue', value: '24.6k', change: '+13%', trend: 'up' },
-  { title: 'Fund Utilization Rate', value: '81.1%', change: '+8%', trend: 'up' },
-  { title: 'Grant Application Success Rate', value: '42%', change: '+10%', trend: 'up' },
-  { title: 'Budget vs Actuals', value: '1.9', change: '+2%', trend: 'up' },
-  { title: 'Administrative Cost Ratio', value: '3.2', change: '+10%', trend: 'up' },
-  { title: 'Program Efficiency Rate', value: '55.9%', change: '+2%', trend: 'up' },
-]
-
-const areaData = [
-
-  { name: '1', budget: 1600, actual: 2600 },
-  { name: '4', budget: 1500, actual: 3000 },
-  { name: '8', budget: 2100, actual: 2700 },
-  { name: '12', budget: 2800, actual: 3500 },
-  { name: '16', budget: 2200, actual: 2800 },
-  { name: '20', budget: 2600, actual: 2400 },
-  { name: '24', budget: 1000, actual: 2600 },
-]
-
-const barData = [
-  { name: 'Mon', donations: 4 },
-  { name: 'Tue', donations: 6 },
-  { name: 'Wed', donations: 3.5 },
-  { name: 'Thu', donations: 2 },
-  { name: 'Fri', donations: 3 },
-  { name: 'Sat', donations: 4 },
-  { name: 'Sun', donations: 5.5 },
-]
-
 export function Dashboard() {
   const storedId = localStorage.getItem('ngo_id');
   const ngoId = storedId && storedId !== 'null' ? parseInt(storedId, 10) : 0;
@@ -56,8 +25,63 @@ export function Dashboard() {
     retry: 1
   });
 
-  // If real data exists, map it. Otherwise use fallback for the visual preview.
-  const displayStats = walletData?.stats || fallbackStatsData;
+  const parseAmount = (value: unknown) => {
+    const amount = Number(value)
+    return Number.isFinite(amount) ? amount : 0
+  }
+
+  const allDonations = Array.isArray(donationsData) ? donationsData : []
+  const completedDonations = allDonations.filter((donation: any) => donation.status === 'completed')
+  const totalDonationAmount = completedDonations.reduce(
+    (sum: number, donation: any) => sum + parseAmount(donation.amount),
+    0,
+  )
+
+  const walletBalance = parseAmount(walletData?.balance)
+  const successRate = allDonations.length > 0 ? (completedDonations.length / allDonations.length) * 100 : 0
+  const averageDonation = completedDonations.length > 0 ? totalDonationAmount / completedDonations.length : 0
+
+  const displayStats = [
+    {
+      title: 'Wallet Balance',
+      value: walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      change: `${completedDonations.length} completed`,
+      trend: 'up',
+    },
+    {
+      title: 'Total Donations',
+      value: allDonations.length.toString(),
+      change: `${allDonations.length - completedDonations.length} pending/failed`,
+      trend: 'up',
+    },
+    {
+      title: 'Donation Success Rate',
+      value: `${successRate.toFixed(1)}%`,
+      change: `${completedDonations.length}/${allDonations.length || 0}`,
+      trend: 'up',
+    },
+    {
+      title: 'Average Donation',
+      value: averageDonation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      change: 'Live backend data',
+      trend: 'up',
+    },
+  ]
+
+  const recentDonations = [...completedDonations]
+    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .slice(-7)
+
+  const barData = recentDonations.map((donation: any) => ({
+    name: new Date(donation.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    donations: parseAmount(donation.amount),
+  }))
+
+  let runningTotal = 0
+  const areaData = barData.map((point) => {
+    runningTotal += point.donations
+    return { name: point.name, cumulative: runningTotal }
+  })
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +129,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {displayStats.map((stat: any, i: number) => (
           <motion.div
             key={stat.title}
@@ -145,29 +169,28 @@ export function Dashboard() {
             <h3 className="text-sm font-medium text-muted">Budget vs Actuals</h3>
           </div>
           <div className="flex-1 w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={areaData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00d1b2" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#00d1b2" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorBudget" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Area type="monotone" dataKey="actual" stroke="#00d1b2" strokeWidth={2} fillOpacity={1} fill="url(#colorActual)" />
-                <Area type="monotone" dataKey="budget" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorBudget)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {areaData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={areaData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00d1b2" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#00d1b2" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="cumulative" stroke="#00d1b2" strokeWidth={2} fillOpacity={1} fill="url(#colorCumulative)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-muted">No donation trend data yet.</div>
+            )}
           </div>
         </motion.div>
 
@@ -181,18 +204,22 @@ export function Dashboard() {
             <h3 className="text-sm font-medium text-muted">Donations Over Time</h3>
           </div>
           <div className="flex-1 w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                  contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                />
-                <Bar dataKey="donations" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {barData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={32}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                    contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="donations" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-muted">No donation records yet.</div>
+            )}
           </div>
         </motion.div>
       </div>

@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Clock, MapPin, Search } from 'lucide-react'
 import { api } from '../lib/api'
 import { cn } from '../lib/utils'
 
 
 export function Problems() {
+  const role = localStorage.getItem('user_role')
+  const canVerifyAndCreateTask = role === 'ngo_admin' || role === 'ngo_member'
   const { data: problemsData, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['problems'],
     queryFn: () => api.getProblems(),
@@ -15,6 +17,29 @@ export function Problems() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ title: '', description: '', category: '', address: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+
+  const verifyAndCreateTaskMutation = useMutation({
+    mutationFn: async (problem: any) => {
+      await api.verifyProblem(String(problem.id), {
+        status: 'approved',
+        notes: 'Verified from operations dashboard',
+      })
+
+      return api.createTask({
+        problem_id: problem.id,
+        title: `Resolve: ${problem.title}`,
+        description: `Auto-created from verified problem #${problem.id}`,
+      })
+    },
+    onSuccess: () => {
+      setActionMessage('Problem verified and task created successfully.')
+      refetch()
+    },
+    onError: (err: any) => {
+      setActionMessage(err.response?.data?.detail || 'Failed to verify problem and create task.')
+    },
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +82,10 @@ export function Problems() {
           </button>
         </div>
       </div>
+
+      {actionMessage && (
+        <div className="glass rounded-xl p-3 text-sm text-foreground">{actionMessage}</div>
+      )}
 
       {isLoading ? (
         <div className="glass rounded-xl p-5 text-sm text-muted">Loading problems...</div>
@@ -103,9 +132,16 @@ export function Problems() {
                   <div className="text-xs text-muted mb-1">AI Confidence</div>
                   <div className="text-xl font-bold text-primary">{problem.ai_confidence || 0}%</div>
                 </div>
-                <button className="px-4 py-2 bg-primary text-background font-semibold text-sm rounded-lg hover:bg-primary-hover transition-colors shadow-[0_0_15px_rgba(0,209,178,0.3)]">
-                  Verify & Create Task
-                </button>
+                {canVerifyAndCreateTask && (
+                  <button
+                    type="button"
+                    onClick={() => verifyAndCreateTaskMutation.mutate(problem)}
+                    disabled={verifyAndCreateTaskMutation.isPending}
+                    className="px-4 py-2 bg-primary text-background font-semibold text-sm rounded-lg hover:bg-primary-hover transition-colors shadow-[0_0_15px_rgba(0,209,178,0.3)] disabled:opacity-50"
+                  >
+                    {verifyAndCreateTaskMutation.isPending ? 'Processing...' : 'Verify & Create Task'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

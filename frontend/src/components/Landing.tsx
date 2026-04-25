@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Hexagon, ArrowRight, ShieldCheck, Globe, Activity, Loader2, HeartHandshake, HandCoins } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Landing() {
   const token = localStorage.getItem('jwt_token')
@@ -80,6 +81,7 @@ export function Landing() {
           <span className="ml-3 font-bold text-xl tracking-wide">Seva<span className="text-primary">Setu</span></span>
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle className="px-2.5 py-1.5 text-xs shadow-none" />
           <Link to="/login" className="text-sm font-medium text-muted hover:text-foreground transition-colors">Sign In</Link>
           <Link to="/register" className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-full hover:bg-primary-hover transition-colors shadow-sm">
             Get Started
@@ -112,7 +114,7 @@ export function Landing() {
           ) : stats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto mb-16 px-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{stats.total_ngos || 12}</div>
+                <div className="text-3xl font-bold text-primary">{stats.total_ngos}</div>
                 <div className="text-xs text-muted uppercase tracking-widest mt-1">Partner NGOs</div>
               </div>
               <div className="text-center">

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Hexagon, Loader2 } from 'lucide-react'
 import { api, clearAuthStorage, setUserSession } from '../lib/api'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Login() {
   const navigate = useNavigate()
@@ -79,6 +80,10 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-surface">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle className="px-2.5 py-1.5 text-xs shadow-none" />
+      </div>
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link to="/" className="inline-flex items-center justify-center">
           <Hexagon className="w-10 h-10 text-primary" />

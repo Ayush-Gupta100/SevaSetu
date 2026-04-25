@@ -2,17 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-background: 255 255 255;
+  --color-surface: 248 250 252;
+  --color-foreground: 15 23 42;
+  --color-primary: 99 102 241;
+  --color-primary-hover: 79 70 229;
+  --color-muted: 100 116 139;
+  --color-border: 226 232 240;
+}
+
+.dark {
+  --color-background: 10 14 26;
+  --color-surface: 17 24 39;
+  --color-foreground: 226 232 240;
+  --color-primary: 129 140 248;
+  --color-primary-hover: 165 180 252;
+  --color-muted: 148 163 184;
+  --color-border: 51 65 85;
+}
+
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased font-sans;
+    @apply bg-background text-foreground antialiased font-sans transition-colors duration-300;
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 backdrop-blur-md border border-border shadow-sm;
+    @apply bg-surface/85 backdrop-blur-md border border-border shadow-sm;
   }
   .glass-hover {
-    @apply hover:bg-slate-50 transition-colors duration-300;
+    @apply hover:bg-surface transition-colors duration-300;
+  }
+
+  .dark .bg-white {
+    background-color: rgb(17 24 39);
+  }
+
+  .dark .bg-white\/50 {
+    background-color: rgb(17 24 39 / 0.85);
+  }
+
+  .dark .bg-slate-50,
+  .dark .bg-slate-100 {
+    background-color: rgb(30 41 59);
+  }
+
+  .dark .hover\:bg-slate-50:hover,
+  .dark .hover\:bg-slate-100:hover,
+  .dark .hover\:bg-slate-200:hover {
+    background-color: rgb(51 65 85);
+  }
+
+  .dark .ring-white {
+    --tw-ring-color: rgb(var(--color-background));
   }
 }

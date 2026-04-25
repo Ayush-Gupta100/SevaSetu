@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-export const API_BASE_URL = '/api/v1';
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  'http://127.0.0.1:8000/api/v1';
 const AUTH_TOKEN_KEY = 'jwt_token';
 const USER_ROLE_KEY = 'user_role';
 const NGO_ID_KEY = 'ngo_id';

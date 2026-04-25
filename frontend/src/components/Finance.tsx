@@ -3,20 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { api } from '../lib/api'
 
-const mockLedger = [
-  { id: 1, type: 'credit', amount: 5000, description: 'Corporate Donation', date: '2026-04-15' },
-  { id: 2, type: 'debit', amount: 1200, description: 'Medical Supplies Purchase', date: '2026-04-16' },
-  { id: 3, type: 'credit', amount: 350, description: 'Individual Contributor', date: '2026-04-17' },
-]
-
 export function Finance() {
   const storedId = localStorage.getItem('ngo_id')
   const ngoId = storedId && storedId !== 'null' ? parseInt(storedId, 10) : 0
   const { data: walletData } = useQuery({ queryKey: ['wallet', ngoId], queryFn: () => api.getWallet(ngoId.toString()), enabled: ngoId > 0, retry: 1 })
   const { data: ledgerData } = useQuery({ queryKey: ['ledger', ngoId], queryFn: () => api.getLedger(ngoId.toString()), enabled: ngoId > 0, retry: 1 })
 
-  const balance = walletData?.balance || 24650
-  const ledger = ledgerData || mockLedger
+  const balance = Number(walletData?.balance ?? 0)
+  const ledger = Array.isArray(ledgerData) ? ledgerData : []
 
   return (
     <div className="space-y-6 pb-20">
@@ -45,22 +39,26 @@ export function Finance() {
       <div className="mt-8">
         <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
         <div className="glass rounded-xl overflow-hidden">
-          {ledger.map((tx: any, i: number) => (
-            <div key={tx.id} className={`flex items-center justify-between p-4 ${i !== ledger.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/[0.02]`}>
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-full ${tx.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                  {tx.type === 'credit' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+          {ledger.length === 0 ? (
+            <div className="p-6 text-sm text-muted">No ledger entries found.</div>
+          ) : (
+            ledger.map((tx: any, i: number) => (
+              <div key={tx.id} className={`flex items-center justify-between p-4 ${i !== ledger.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/[0.02]`}>
+                <div className="flex items-center gap-4">
+                  <div className={`p-2 rounded-full ${tx.type === 'credit' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                    {tx.type === 'credit' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground/90">{`${tx.reference_type || 'entry'} #${tx.reference_id ?? tx.id}`}</p>
+                    <p className="text-xs text-muted">{new Date(tx.created_at).toLocaleString()}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-foreground/90">{tx.description}</p>
-                  <p className="text-xs text-muted">{tx.date}</p>
+                <div className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-foreground/90'}`}>
+                  {tx.type === 'credit' ? '+' : '-'}${Number(tx.amount || 0).toLocaleString()}
                 </div>
               </div>
-              <div className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-foreground/90'}`}>
-                {tx.type === 'credit' ? '+' : '-'}${tx.amount}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
