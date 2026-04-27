@@ -1,17 +1,17 @@
 import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare, Clock, User } from 'lucide-react'
-import { api } from '../lib/api'
+import { api, getCurrentUserId } from '../lib/api'
 import { useFeedback } from '../lib/feedback'
 
 export function Tasks() {
   const queryClient = useQueryClient()
   const { showError, showSuccess } = useFeedback()
   const role = localStorage.getItem('user_role')
+  const currentUserId = getCurrentUserId()
   const isMemberView = role === 'ngo_member' || role === 'volunteer'
   const canAssign = role === 'ngo_admin' || role === 'ngo_member'
-  const canAccept = role === 'volunteer'
-  const canComplete = role === 'ngo_admin' || role === 'ngo_member'
+  const isVolunteer = role === 'volunteer'
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
@@ -134,7 +134,7 @@ export function Tasks() {
                   </>
                 )}
 
-                {colStatus === 'assigned' && canAccept && (
+                {colStatus === 'assigned' && isVolunteer && task.assigned_user_id === currentUserId && (
                   <button
                     type="button"
                     onClick={() => acceptMutation.mutate(task.id)}
@@ -145,7 +145,9 @@ export function Tasks() {
                   </button>
                 )}
 
-                {(colStatus === 'assigned' || colStatus === 'in_progress') && canComplete && (
+                {(colStatus === 'assigned' || colStatus === 'in_progress') && (
+                  (canAssign) || (isVolunteer && task.assigned_user_id === currentUserId)
+                ) && (
                   <button
                     type="button"
                     onClick={() => completeMutation.mutate(task.id)}

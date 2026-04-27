@@ -237,11 +237,21 @@ def try_auto_assign_task(db: Session, task: Task, assigned_by: int | None = None
 			best_user = user
 
 	if not best_user or best_score <= 0:
-		db.commit()
-		return {
-			"assigned": False,
-			"reason": "No suitable volunteer found yet.",
-		}
+		# Fallback: if no skill-matched volunteer found but volunteers are available,
+		# assign to any available volunteer to prevent tasks from being perpetually open.
+		if available:
+			best_user = available[0]
+			logger.info(
+				"No skill-match found for task_id=%s; falling back to first available volunteer user_id=%s.",
+				task.id,
+				best_user.id,
+			)
+		else:
+			db.commit()
+			return {
+				"assigned": False,
+				"reason": "No available volunteers right now.",
+			}
 
 	assignment = TaskAssignment(
 		task_id=task.id,

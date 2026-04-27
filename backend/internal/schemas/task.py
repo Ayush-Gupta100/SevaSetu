@@ -17,6 +17,7 @@ class TaskResponse(BaseModel):
 	title: str
 	description: Optional[str] = None
 	assigned_by: Optional[int] = None
+	assigned_user_id: Optional[int] = None
 	status: str
 	deadline: Optional[datetime] = None
 	created_at: datetime

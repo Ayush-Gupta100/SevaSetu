@@ -1,11 +1,27 @@
 from fastapi import APIRouter, Depends, Query
 
-from handlers.ngo_handler import add_ngo_member, add_ngo_member_by_email, get_ngo_details, list_ngos, register_ngo, update_ngo_hq_location, verify_ngo
+from handlers.ngo_handler import (
+	add_ngo_member,
+	add_ngo_member_by_email,
+	confirm_ngo_member_import,
+	get_ngo_details,
+	list_ngo_members,
+	list_ngos,
+	preview_ngo_member_import,
+	register_ngo,
+	upload_ngo_member_import,
+	update_ngo_hq_location,
+	verify_ngo,
+)
 from internal.auth_dependencies import get_current_user, require_roles
 from internal.schemas.ngo import (
 	AddNgoMemberRequest,
 	AddNgoMemberByEmailRequest,
 	AddNgoMemberByEmailResponse,
+	NgoMemberImportConfirmResponse,
+	NgoMemberImportPreviewResponse,
+	NgoMemberImportUploadRequest,
+	NgoMemberImportUploadResponse,
 	MessageResponse,
 	NgoCreateRequest,
 	NgoHqLocationRequest,
@@ -73,6 +89,35 @@ def add_ngo_member_by_email_route(
 
 
 @ngo_router.get("/{ngo_id}/members")
-def get_ngo_members_route(ngo_id: int, current_user=Depends(get_current_user)):
-	from handlers.ngo_handler import list_ngo_members
-	return list_ngo_members(ngo_id)
+def get_ngo_members_route(
+	ngo_id: int,
+	current_user=Depends(require_roles("ngo_admin", "ngo_member")),
+):
+	return list_ngo_members(ngo_id, current_user)
+
+
+@ngo_router.post("/{ngo_id}/members/import/upload", response_model=NgoMemberImportUploadResponse)
+def upload_ngo_member_import_route(
+	ngo_id: int,
+	payload: NgoMemberImportUploadRequest,
+	current_user=Depends(require_roles("ngo_admin")),
+):
+	return upload_ngo_member_import(ngo_id, payload.file_name, payload.rows, current_user)
+
+
+@ngo_router.get("/{ngo_id}/members/import/{import_id}/preview", response_model=NgoMemberImportPreviewResponse)
+def preview_ngo_member_import_route(
+	ngo_id: int,
+	import_id: str,
+	current_user=Depends(require_roles("ngo_admin")),
+):
+	return preview_ngo_member_import(ngo_id, import_id, current_user)
+
+
+@ngo_router.post("/{ngo_id}/members/import/{import_id}/confirm", response_model=NgoMemberImportConfirmResponse)
+def confirm_ngo_member_import_route(
+	ngo_id: int,
+	import_id: str,
+	current_user=Depends(require_roles("ngo_admin")),
+):
+	return confirm_ngo_member_import(ngo_id, import_id, current_user)

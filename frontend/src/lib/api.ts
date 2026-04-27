@@ -7,6 +7,7 @@ const AUTH_TOKEN_KEY = 'jwt_token';
 const USER_ROLE_KEY = 'user_role';
 const NGO_ID_KEY = 'ngo_id';
 const USER_NAME_KEY = 'user_name';
+const USER_ID_KEY = 'user_id';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -43,6 +44,7 @@ export function clearAuthStorage() {
   localStorage.removeItem(USER_ROLE_KEY);
   localStorage.removeItem(NGO_ID_KEY);
   localStorage.removeItem(USER_NAME_KEY);
+  localStorage.removeItem(USER_ID_KEY);
 }
 
 export function getAuthToken() {
@@ -68,6 +70,14 @@ export function setUserSession(profile: any, token?: string) {
   if (profile?.name) {
     localStorage.setItem(USER_NAME_KEY, profile.name);
   }
+  if (profile?.id) {
+    localStorage.setItem(USER_ID_KEY, String(profile.id));
+  }
+}
+
+export function getCurrentUserId(): number | null {
+  const id = localStorage.getItem(USER_ID_KEY);
+  return id ? Number(id) : null;
 }
 
 export const api = {
@@ -88,6 +98,9 @@ export const api = {
   addNgoMember: (id: string, data: any) => apiClient.post(`/ngos/${id}/members`, data).then(res => res.data),
   addNgoMemberByEmail: (id: string, data: any) => apiClient.post(`/ngos/${id}/members/by-email`, data).then(res => res.data),
   getNgoMembers: (id: string) => apiClient.get(`/ngos/${id}/members`).then(res => res.data),
+  uploadNgoMembersImport: (id: string, data: any) => apiClient.post(`/ngos/${id}/members/import/upload`, data).then(res => res.data),
+  previewNgoMembersImport: (id: string, importId: string) => apiClient.get(`/ngos/${id}/members/import/${importId}/preview`).then(res => res.data),
+  confirmNgoMembersImport: (id: string, importId: string) => apiClient.post(`/ngos/${id}/members/import/${importId}/confirm`).then(res => res.data),
 
   // --- LOCATIONS ---
   geocode: (data: any) => apiClient.post('/locations/geocode', data).then(res => res.data),

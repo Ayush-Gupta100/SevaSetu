@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
+import { api, setUserSession } from '../lib/api'
 import { useFeedback } from '../lib/feedback'
 
 export function ChangePassword() {
@@ -27,9 +27,18 @@ export function ChangePassword() {
         current_password: currentPassword,
         new_password: newPassword,
       })
+
+      // Refresh profile after password update so role-based redirect is always accurate.
+      const profile = await api.getProfile()
+      setUserSession(profile)
+
+      if (profile.must_change_password) {
+        setError('Password update did not complete. Please try again.')
+        return
+      }
+
       showSuccess('Password updated successfully. Please continue to your dashboard.')
-      const role = localStorage.getItem('user_role')
-      if (role === 'ngo_admin') {
+      if (profile.role === 'ngo_admin') {
         navigate('/dashboard')
       } else {
         navigate('/member-dashboard')

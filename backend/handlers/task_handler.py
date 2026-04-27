@@ -87,7 +87,21 @@ def get_tasks(
 
 				query = query.filter(Task.problem_id.in_(nearby_problem_ids))
 
-		return query.order_by(Task.created_at.desc()).offset(offset).limit(limit).all()
+		tasks = query.order_by(Task.created_at.desc()).offset(offset).limit(limit).all()
+		
+		# Attach the assigned_user_id if available
+		result = []
+		for t in tasks:
+			active_assignment = db.query(TaskAssignment).filter(
+				TaskAssignment.task_id == t.id,
+				TaskAssignment.status.in_(["assigned", "accepted", "in_progress"])
+			).first()
+			
+			t_dict = t.__dict__.copy()
+			t_dict["assigned_user_id"] = active_assignment.user_id if active_assignment else None
+			result.append(t_dict)
+			
+		return result
 
 
 def assign_task(task_id: int, payload: TaskAssignRequest, current_user: User):
@@ -138,16 +152,31 @@ def accept_task(task_id: int, current_user: User):
 		if not assignment:
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Task is not assigned to you.")
 
+		if assignment.status == "accepted":
+			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Task already accepted.")
+
 		assignment.status = "accepted"
 		task.status = "in_progress"
 		db.add(assignment)
 		db.add(task)
+
+		# Notify the volunteer who accepted (confirmation).
+		create_notification(
+			db,
+			user_id=current_user.id,
+			title="Task Accepted",
+			message=f"You have accepted task #{task.id}: {task.title}. It is now in progress.",
+			notification_type="push",
+			priority="high",
+		)
+
+		# Notify the NGO member/admin who originally assigned it.
 		if task.assigned_by and task.assigned_by != current_user.id:
 			create_notification(
 				db,
 				user_id=task.assigned_by,
-				title="Task Accepted",
-				message=f"Task #{task.id} has been accepted by {current_user.name}.",
+				title="Task Accepted by Volunteer",
+				message=f"Task #{task.id} '{task.title}' has been accepted by {current_user.name} and is now in progress.",
 				notification_type="push",
 				priority="medium",
 			)
@@ -179,6 +208,18 @@ def complete_task(task_id: int, current_user: User):
 		if not task:
 			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
 
+		# Volunteers can only complete tasks they are personally assigned to.
+		if current_user.role == "volunteer":
+			assignment = db.query(TaskAssignment).filter(
+				TaskAssignment.task_id == task.id,
+				TaskAssignment.user_id == current_user.id,
+			).first()
+			if not assignment:
+				raise HTTPException(
+					status_code=status.HTTP_403_FORBIDDEN,
+					detail="You can only complete tasks assigned to you.",
+				)
+
 		if task.status not in ("in_progress", "assigned"):
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
@@ -186,22 +227,40 @@ def complete_task(task_id: int, current_user: User):
 			)
 
 		assignments = db.query(TaskAssignment).filter(TaskAssignment.task_id == task.id).all()
+		volunteer_ids = []
 		for assignment in assignments:
 			if assignment.status in ("accepted", "assigned"):
 				assignment.status = "completed"
 				db.add(assignment)
+			volunteer_ids.append(assignment.user_id)
 
 		task.status = "completed"
 		db.add(task)
+
+		# Notify the NGO member/admin who assigned the task.
 		if task.assigned_by and task.assigned_by != current_user.id:
 			create_notification(
 				db,
 				user_id=task.assigned_by,
 				title="Task Completed",
-				message=f"Task #{task.id} has been marked completed by {current_user.name}.",
+				message=f"Task #{task.id} '{task.title}' has been marked completed by {current_user.name}.",
 				notification_type="push",
 				priority="medium",
 			)
+
+		# If completed by an NGO member, notify the assigned volunteers.
+		if current_user.role in ("ngo_member", "ngo_admin"):
+			for vid in volunteer_ids:
+				if vid != current_user.id:
+					create_notification(
+						db,
+						user_id=vid,
+						title="Task Marked Complete",
+						message=f"Task #{task.id} '{task.title}' has been marked as completed. Great work!",
+						notification_type="push",
+						priority="medium",
+					)
+
 		db.commit()
 		return {"message": "Task completed successfully.", "task_id": task.id}
 

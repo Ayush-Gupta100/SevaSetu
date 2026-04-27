@@ -62,6 +62,6 @@ def upload_task_proof_route(
 @task_router.patch("/{task_id}/complete", response_model=TaskAcceptResponse)
 def complete_task_route(
 	task_id: int,
-	current_user=Depends(require_roles("ngo_member", "ngo_admin")),
+	current_user=Depends(require_roles("ngo_member", "ngo_admin", "volunteer")),
 ):
 	return complete_task(task_id, current_user)
