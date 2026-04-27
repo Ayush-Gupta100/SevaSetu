@@ -1,4 +1,6 @@
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
+import asyncio
+import logging
 import os
 
 from fastapi import FastAPI
@@ -6,10 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from config.db import init_db
+from handlers.task_handler import run_pending_auto_assignment_checks
 from routes.routes import api_router
 
 
 load_dotenv()
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_allowed_origins() -> list[str]:
@@ -27,10 +33,33 @@ def get_allowed_origins() -> list[str]:
 	]
 
 
+async def _auto_assignment_worker(interval_seconds: int) -> None:
+	while True:
+		try:
+			result = await asyncio.to_thread(run_pending_auto_assignment_checks)
+			if result.get("assigned"):
+				logger.info(
+					"Auto-assignment cycle complete: checked=%s assigned=%s",
+					result.get("checked", 0),
+					result.get("assigned", 0),
+				)
+		except Exception:
+			logger.exception("Auto-assignment cycle failed")
+
+		await asyncio.sleep(interval_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
 	init_db()
-	yield
+	interval_seconds = int(os.getenv("AUTO_ASSIGN_INTERVAL_SECONDS", "60"))
+	worker = asyncio.create_task(_auto_assignment_worker(max(10, interval_seconds)))
+	try:
+		yield
+	finally:
+		worker.cancel()
+		with suppress(asyncio.CancelledError):
+			await worker
 
 
 app = FastAPI(title="Community Coordination API", version="1.0.0", lifespan=lifespan)

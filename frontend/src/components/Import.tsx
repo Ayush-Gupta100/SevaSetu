@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 
 function parseCsv(text: string): Array<Record<string, string>> {
   const lines = text
@@ -23,6 +24,7 @@ function parseCsv(text: string): Array<Record<string, string>> {
 }
 
 export function DataImport() {
+  const { showError, showSuccess } = useFeedback()
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
@@ -52,7 +54,7 @@ export function DataImport() {
       const preview = await api.importPreview(res.import_id)
       setPreviewData(preview)
     } catch (err: any) {
-      alert('Upload failed: ' + (err.response?.data?.detail || err.message))
+      showError('Upload failed: ' + (err.response?.data?.detail || err.message))
     } finally {
       setUploading(false)
     }
@@ -63,12 +65,12 @@ export function DataImport() {
     setImporting(true)
     try {
       await api.importConfirm(importId)
-      alert('Data imported successfully!')
+      showSuccess('Data imported successfully!')
       setFile(null)
       setPreviewData(null)
       setImportId(null)
     } catch (err: any) {
-      alert('Import failed: ' + (err.response?.data?.detail || err.message))
+      showError('Import failed: ' + (err.response?.data?.detail || err.message))
     } finally {
       setImporting(false)
     }

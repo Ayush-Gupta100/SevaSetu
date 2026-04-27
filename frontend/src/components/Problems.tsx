@@ -2,10 +2,12 @@ import React, { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Clock, MapPin, Search } from 'lucide-react'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 import { cn } from '../lib/utils'
 
 
 export function Problems() {
+  const { showError, showSuccess } = useFeedback()
   const role = localStorage.getItem('user_role')
   const canVerifyAndCreateTask = role === 'ngo_admin' || role === 'ngo_member'
   const { data: problemsData, refetch, isLoading, isError, error } = useQuery({
@@ -17,7 +19,6 @@ export function Problems() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ title: '', description: '', category: '', address: '' })
   const [submitting, setSubmitting] = useState(false)
-  const [actionMessage, setActionMessage] = useState('')
 
   const verifyAndCreateTaskMutation = useMutation({
     mutationFn: async (problem: any) => {
@@ -32,12 +33,16 @@ export function Problems() {
         description: `Auto-created from verified problem #${problem.id}`,
       })
     },
-    onSuccess: () => {
-      setActionMessage('Problem verified and task created successfully.')
+    onSuccess: (createdTask: any) => {
+      if (createdTask?.status === 'assigned') {
+        showSuccess('Problem verified, task created, and auto-assigned successfully.')
+      } else {
+        showSuccess('Problem verified and task created successfully. Auto-assignment is pending.')
+      }
       refetch()
     },
     onError: (err: any) => {
-      setActionMessage(err.response?.data?.detail || 'Failed to verify problem and create task.')
+      showError(err.response?.data?.detail || 'Failed to verify problem and create task.')
     },
   })
 
@@ -52,12 +57,12 @@ export function Problems() {
         category: formData.category,
         location_id: geo.location_id,
       })
-      alert('Problem reported successfully!')
+      showSuccess('Problem reported successfully!')
       setIsModalOpen(false)
       setFormData({ title: '', description: '', category: '', address: '' })
       refetch()
     } catch (err: any) {
-      alert('Failed to report problem: ' + (err.response?.data?.detail || err.message))
+      showError('Failed to report problem: ' + (err.response?.data?.detail || err.message))
     } finally {
       setSubmitting(false)
     }
@@ -82,10 +87,6 @@ export function Problems() {
           </button>
         </div>
       </div>
-
-      {actionMessage && (
-        <div className="glass rounded-xl p-3 text-sm text-foreground">{actionMessage}</div>
-      )}
 
       {isLoading ? (
         <div className="glass rounded-xl p-5 text-sm text-muted">Loading problems...</div>

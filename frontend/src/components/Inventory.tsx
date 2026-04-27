@@ -2,8 +2,10 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Package, Activity } from 'lucide-react'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 
 export function Inventory() {
+  const { showError, showSuccess } = useFeedback()
   const { data, refetch } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory, retry: 1 })
   const inventory = Array.isArray(data) ? data : []
 
@@ -19,12 +21,12 @@ export function Inventory() {
         resource_type_id: formData.resource_type_id,
         quantity_total: parseFloat(formData.quantity_total)
       })
-      alert('Resource added successfully!')
+      showSuccess('Resource added successfully!')
       setIsModalOpen(false)
       setFormData({ resource_type_id: 1, quantity_total: '' })
       refetch()
     } catch (err: any) {
-      alert('Failed to add resource: ' + (err.response?.data?.detail || err.message))
+      showError('Failed to add resource: ' + (err.response?.data?.detail || err.message))
     } finally {
       setSubmitting(false)
     }

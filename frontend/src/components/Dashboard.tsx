@@ -2,11 +2,13 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { ArrowUpRight, ArrowDownRight, Calendar, Filter, Loader2 } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Calendar, Filter, Loader2, Bell } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 
 export function Dashboard() {
+  const { showError, showSuccess } = useFeedback()
   const storedId = localStorage.getItem('ngo_id');
   const ngoId = storedId && storedId !== 'null' ? parseInt(storedId, 10) : 0;
 
@@ -24,6 +26,12 @@ export function Dashboard() {
     queryFn: api.getDonations,
     retry: 1
   });
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ['notifications_dashboard'],
+    queryFn: api.getNotifications,
+    retry: 1,
+  })
 
   const parseAmount = (value: unknown) => {
     const amount = Number(value)
@@ -83,6 +91,10 @@ export function Dashboard() {
     return { name: point.name, cumulative: runningTotal }
   })
 
+  const recentNotifications = (Array.isArray(notificationsData) ? notificationsData : [])
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5)
+
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -90,10 +102,10 @@ export function Dashboard() {
     const role = (form.elements.namedItem('role') as HTMLSelectElement).value;
     try {
       await api.addNgoMember(ngoId.toString(), { user_id: parseInt(userId, 10), role });
-      alert('Member added successfully!');
+      showSuccess('Member added successfully!');
       form.reset();
     } catch (err: any) {
-      alert('Failed to add member: ' + (err.response?.data?.detail || err.message));
+      showError('Failed to add member: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -227,8 +239,35 @@ export function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.75, duration: 0.5 }}
+          className="glass rounded-2xl p-6"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              Recent Notifications
+            </h3>
+          </div>
+
+          {recentNotifications.length === 0 ? (
+            <p className="text-sm text-muted">No notifications yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {recentNotifications.map((notification: any) => (
+                <div key={notification.id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                  <p className="text-sm font-medium text-foreground/90">{notification.title}</p>
+                  <p className="text-xs text-muted mt-1 line-clamp-2">{notification.message}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8, duration: 0.5 }}
-          className="glass rounded-2xl p-6 lg:col-span-2"
+          className="glass rounded-2xl p-6"
         >
           <div className="mb-6 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">Team Management</h3>

@@ -1,15 +1,20 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare, Clock, User, ArrowRight } from 'lucide-react'
+import { CheckSquare, Clock, User } from 'lucide-react'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 
 export function Tasks() {
   const queryClient = useQueryClient()
+  const { showError, showSuccess } = useFeedback()
   const role = localStorage.getItem('user_role')
   const isMemberView = role === 'ngo_member' || role === 'volunteer'
   const canAssign = role === 'ngo_admin' || role === 'ngo_member'
   const canAccept = role === 'volunteer'
   const canComplete = role === 'ngo_admin' || role === 'ngo_member'
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState('')
 
   const { data: tasksData } = useQuery({
     queryKey: ['tasks', isMemberView ? 'mine' : 'all'],
@@ -18,23 +23,18 @@ export function Tasks() {
   })
 
   const assignMutation = useMutation({
-    mutationFn: async (taskId: number) => {
-      const userIdInput = window.prompt('Enter user ID to assign this task to:')
-      if (!userIdInput) {
-        throw new Error('Assignment cancelled.')
-      }
-      const userId = Number(userIdInput)
-      if (!Number.isFinite(userId) || userId <= 0) {
-        throw new Error('Invalid user ID.')
-      }
-
+    mutationFn: async ({ taskId, userId }: { taskId: number; userId: number }) => {
       return api.assignTask(String(taskId), { user_id: userId, role: 'volunteer' })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      showSuccess('Task assigned successfully.')
+      setIsAssignModalOpen(false)
+      setSelectedTaskId(null)
+      setSelectedUserId('')
     },
     onError: (err: any) => {
-      alert(err.response?.data?.detail || err.message || 'Failed to assign task.')
+      showError(err.response?.data?.detail || err.message || 'Failed to assign task.')
     },
   })
 
@@ -42,9 +42,10 @@ export function Tasks() {
     mutationFn: (taskId: number) => api.acceptTask(String(taskId)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      showSuccess('Task accepted successfully.')
     },
     onError: (err: any) => {
-      alert(err.response?.data?.detail || err.message || 'Failed to accept task.')
+      showError(err.response?.data?.detail || err.message || 'Failed to accept task.')
     },
   })
 
@@ -52,11 +53,34 @@ export function Tasks() {
     mutationFn: (taskId: number) => api.completeTask(String(taskId)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      showSuccess('Task marked as completed.')
     },
     onError: (err: any) => {
-      alert(err.response?.data?.detail || err.message || 'Failed to complete task.')
+      showError(err.response?.data?.detail || err.message || 'Failed to complete task.')
     },
   })
+
+  const openAssignModal = (taskId: number) => {
+    setSelectedTaskId(taskId)
+    setSelectedUserId('')
+    setIsAssignModalOpen(true)
+  }
+
+  const handleAssignSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedTaskId) {
+      showError('No task selected for assignment.')
+      return
+    }
+
+    const userId = Number(selectedUserId)
+    if (!Number.isFinite(userId) || userId <= 0) {
+      showError('Please enter a valid user ID.')
+      return
+    }
+
+    assignMutation.mutate({ taskId: selectedTaskId, userId })
+  }
 
   const tasks = Array.isArray(tasksData) ? tasksData : []
 
@@ -97,17 +121,14 @@ export function Tasks() {
                 </div>
                 {colStatus === 'open' && (
                   <>
-                    <button className="w-full mt-4 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-md text-xs font-medium text-foreground transition-colors flex items-center justify-center gap-2">
-                      Auto-Assign via AI <ArrowRight className="w-3 h-3" />
-                    </button>
                     {canAssign && (
                       <button
                         type="button"
-                        onClick={() => assignMutation.mutate(task.id)}
+                        onClick={() => openAssignModal(task.id)}
                         disabled={assignMutation.isPending}
-                        className="w-full mt-2 py-1.5 bg-primary/20 hover:bg-primary/30 rounded-md text-xs font-medium text-primary transition-colors disabled:opacity-50"
+                        className="w-full mt-4 py-1.5 bg-primary/20 hover:bg-primary/30 rounded-md text-xs font-medium text-primary transition-colors disabled:opacity-50"
                       >
-                        {assignMutation.isPending ? 'Assigning...' : 'Assign Task'}
+                        Assign Task
                       </button>
                     )}
                   </>
@@ -139,6 +160,48 @@ export function Tasks() {
           </div>
         ))}
       </div>
+
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-surface border border-white/10 rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-xl font-bold text-foreground mb-4">Assign Task</h2>
+            <form onSubmit={handleAssignSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-muted mb-1">Volunteer User ID</label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Enter user ID"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAssignModalOpen(false)
+                    setSelectedTaskId(null)
+                    setSelectedUserId('')
+                  }}
+                  className="flex-1 px-4 py-2 border border-border text-foreground font-medium rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assignMutation.isPending}
+                  className="flex-1 px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                >
+                  {assignMutation.isPending ? 'Assigning...' : 'Assign'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

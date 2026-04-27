@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 
 export function ChangePassword() {
   const navigate = useNavigate()
+  const { showSuccess } = useFeedback()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -25,7 +27,7 @@ export function ChangePassword() {
         current_password: currentPassword,
         new_password: newPassword,
       })
-      alert('Password updated successfully. Please continue to your dashboard.')
+      showSuccess('Password updated successfully. Please continue to your dashboard.')
       const role = localStorage.getItem('user_role')
       if (role === 'ngo_admin') {
         navigate('/dashboard')

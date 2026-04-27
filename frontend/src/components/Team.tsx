@@ -2,11 +2,13 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, UserPlus, Shield, User, Mail, Loader2 } from 'lucide-react'
 import { api } from '../lib/api'
+import { useFeedback } from '../lib/feedback'
 import { cn } from '../lib/utils'
 
 export function Team() {
   const ngoId = localStorage.getItem('ngo_id') || '0'
   const queryClient = useQueryClient()
+  const { showError, showSuccess } = useFeedback()
   
   const { data: members, isLoading } = useQuery({
     queryKey: ['ngo_members', ngoId],
@@ -25,13 +27,13 @@ export function Team() {
       setFormData({ email: '', name: '', role: 'field_worker', skills: '' })
       const tempPassword = data?.temporary_password
       if (tempPassword) {
-        alert(`Member added successfully. Temporary password: ${tempPassword}`)
+        showSuccess(`Member added successfully. Temporary password: ${tempPassword}`)
       } else {
-        alert('Member added successfully!')
+        showSuccess('Member added successfully!')
       }
     },
     onError: (err: any) => {
-      alert('Failed to add member: ' + (err.response?.data?.detail || err.message))
+      showError('Failed to add member: ' + (err.response?.data?.detail || err.message))
     }
   })
 

@@ -4,7 +4,9 @@ from decimal import Decimal
 from fastapi import HTTPException, status
 
 from config.db import get_db
+from internal.auto_assignment import try_auto_assign_task
 from internal.geo_utils import haversine_km
+from internal.notifications import create_notification
 from internal.schemas.task import TaskAssignRequest, TaskCreateRequest, TaskProofCreateRequest
 from models.models import Location, Problem, Task, TaskAssignment, TaskProof, User
 
@@ -29,6 +31,10 @@ def create_task(payload: TaskCreateRequest, current_user: User):
 		)
 		db.add(task)
 		db.commit()
+		db.refresh(task)
+
+		# Try an immediate auto-assignment so UI can reflect assignment status right away.
+		try_auto_assign_task(db, task, assigned_by=current_user.id)
 		db.refresh(task)
 		return task
 
@@ -107,6 +113,14 @@ def assign_task(task_id: int, payload: TaskAssignRequest, current_user: User):
 
 		db.add(assignment)
 		db.add(task)
+		create_notification(
+			db,
+			user_id=user.id,
+			title="Task Assigned",
+			message=f"You have been assigned task #{task.id}: {task.title}.",
+			notification_type="push",
+			priority="high",
+		)
 		db.commit()
 		return {"message": "Task assigned successfully.", "task_id": task.id}
 
@@ -128,6 +142,15 @@ def accept_task(task_id: int, current_user: User):
 		task.status = "in_progress"
 		db.add(assignment)
 		db.add(task)
+		if task.assigned_by and task.assigned_by != current_user.id:
+			create_notification(
+				db,
+				user_id=task.assigned_by,
+				title="Task Accepted",
+				message=f"Task #{task.id} has been accepted by {current_user.name}.",
+				notification_type="push",
+				priority="medium",
+			)
 		db.commit()
 		return {"message": "Task accepted.", "task_id": task.id}
 
@@ -170,5 +193,29 @@ def complete_task(task_id: int, current_user: User):
 
 		task.status = "completed"
 		db.add(task)
+		if task.assigned_by and task.assigned_by != current_user.id:
+			create_notification(
+				db,
+				user_id=task.assigned_by,
+				title="Task Completed",
+				message=f"Task #{task.id} has been marked completed by {current_user.name}.",
+				notification_type="push",
+				priority="medium",
+			)
 		db.commit()
 		return {"message": "Task completed successfully.", "task_id": task.id}
+
+
+def run_pending_auto_assignment_checks() -> dict:
+	checked = 0
+	assigned = 0
+
+	with get_db() as db:
+		pending_tasks = db.query(Task).filter(Task.status == "open").order_by(Task.created_at.asc()).all()
+		for task in pending_tasks:
+			checked += 1
+			result = try_auto_assign_task(db, task, assigned_by=task.assigned_by)
+			if result.get("assigned"):
+				assigned += 1
+
+	return {"checked": checked, "assigned": assigned}

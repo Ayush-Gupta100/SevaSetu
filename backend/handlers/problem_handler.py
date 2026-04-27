@@ -4,8 +4,10 @@ from fastapi import HTTPException, status
 
 from config.db import get_db
 from internal.geo_utils import haversine_km
+from internal.auto_assignment import try_auto_assign_task
+from internal.notifications import create_notification
 from internal.schemas.problem import ProblemCreateRequest, ProblemProofCreateRequest, ProblemVerifyRequest
-from models.models import Location, Problem, ProblemProof, ProblemVerification, User
+from models.models import Location, Problem, ProblemProof, ProblemVerification, Task, User
 
 
 def report_problem(payload: ProblemCreateRequest, current_user: User):
@@ -28,6 +30,22 @@ def report_problem(payload: ProblemCreateRequest, current_user: User):
 		db.add(problem)
 		db.commit()
 		db.refresh(problem)
+
+		task = Task(
+			problem_id=problem.id,
+			title=f"Resolve: {problem.title}",
+			description=problem.description,
+			assigned_by=current_user.id,
+			status="open",
+		)
+		db.add(task)
+		db.commit()
+		db.refresh(task)
+
+		# Attempt smart assignment immediately; if unavailable/unsuitable, task stays open (pending).
+		try_auto_assign_task(db, task, assigned_by=current_user.id)
+		db.refresh(problem)
+
 		return problem
 
 
@@ -129,6 +147,18 @@ def verify_problem(problem_id: int, payload: ProblemVerifyRequest, current_user:
 			db.add(verification)
 
 		db.add(problem)
+		create_notification(
+			db,
+			user_id=problem.reported_by,
+			title="Problem Verification Update",
+			message=(
+				f"Your reported problem '{problem.title}' was {problem_status}."
+				if problem_status == "verified"
+				else f"Your reported problem '{problem.title}' was rejected."
+			),
+			notification_type="push",
+			priority="medium",
+		)
 		db.commit()
 		db.refresh(verification)
 

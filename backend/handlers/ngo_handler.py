@@ -2,9 +2,10 @@ from fastapi import HTTPException, status
 
 from config.db import get_db
 from handlers.skills_survey_handler import upsert_user_skills
+from internal.notifications import create_notification
 from internal.schemas.ngo import AddNgoMemberByEmailRequest, AddNgoMemberRequest, NgoCreateRequest, NgoVerificationRequest
 from internal.security import hash_password
-from models.models import Ngo, NgoMember, Notification, Skill, User, UserSkill
+from models.models import Ngo, NgoMember, Skill, User, UserSkill
 
 
 def register_ngo(payload: NgoCreateRequest, current_user: User):
@@ -172,14 +173,14 @@ def add_ngo_member_by_email(ngo_id: int, payload: AddNgoMemberByEmailRequest, cu
 		if temporary_password:
 			notification_message += " Please login and change your temporary password immediately."
 
-		notification = Notification(
+		create_notification(
+			db,
 			user_id=user.id,
-			type="push",
 			title="NGO Membership Added",
 			message=notification_message,
-			status="sent",
+			notification_type="push",
+			priority="high",
 		)
-		db.add(notification)
 
 		db.commit()
 

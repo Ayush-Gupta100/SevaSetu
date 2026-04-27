@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { CheckSquare, AlertCircle, Clock } from 'lucide-react'
+import { CheckSquare, AlertCircle, Clock, Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 
@@ -18,6 +18,12 @@ export function MemberDashboard() {
     retry: 1,
   })
 
+  const { data: notificationsData } = useQuery({
+    queryKey: ['member_notifications_overview'],
+    queryFn: api.getNotifications,
+    retry: 1,
+  })
+
   const addSkillsMutation = useMutation({
     mutationFn: (payload: any) => api.addUserSkills(payload),
     onSuccess: () => {
@@ -30,6 +36,10 @@ export function MemberDashboard() {
   })
 
   const tasks = tasksData || []
+  const notifications = Array.isArray(notificationsData) ? notificationsData : []
+  const recentNotifications = [...notifications]
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5)
   const openCount = tasks.filter((t: any) => t.status === 'assigned' || t.status === 'open').length
   const inProgressCount = tasks.filter((t: any) => t.status === 'in_progress').length
   const completedCount = tasks.filter((t: any) => t.status === 'completed').length
@@ -104,6 +114,31 @@ export function MemberDashboard() {
             Report Problem
           </Link>
         </div>
+      </div>
+
+      <div className="glass rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-foreground/90 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-primary" />
+            Recent Notifications
+          </h2>
+          <Link to="/notifications" className="text-xs text-primary hover:underline">
+            View all
+          </Link>
+        </div>
+
+        {recentNotifications.length === 0 ? (
+          <p className="text-sm text-muted">No notifications yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {recentNotifications.map((notification: any) => (
+              <div key={notification.id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                <p className="text-sm font-medium text-foreground/90">{notification.title}</p>
+                <p className="text-xs text-muted mt-1 line-clamp-2">{notification.message}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {canManageSkills && (

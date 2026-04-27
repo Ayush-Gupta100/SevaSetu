@@ -17,6 +17,7 @@ import { Team } from './components/Team'
 import { MemberDashboard } from './components/MemberDashboard'
 import { ChangePassword } from './components/ChangePassword'
 import { getAuthToken, getUserRole } from './lib/api'
+import { FeedbackProvider } from './lib/feedback'
 import { ThemeProvider } from './lib/theme'
 
 function ProtectedRoute({ allowedRoles }: { allowedRoles?: string[] }) {
@@ -63,39 +64,41 @@ function AppLayout() {
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Landing />} />
+      <FeedbackProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Landing />} />
 
-          <Route element={<PublicOnlyRoute />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-          </Route>
-
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/change-password" element={<ChangePassword />} />
-              <Route path="/member-dashboard" element={<MemberDashboard />} />
-              <Route path="/problems" element={<Problems />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/notifications" element={<Notifications />} />
+            <Route element={<PublicOnlyRoute />}>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
             </Route>
-          </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={['ngo_admin', 'ngo_member']} />}>
-            <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/finance" element={<Finance />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="/import" element={<DataImport />} />
-              <Route path="/team" element={<Team />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/change-password" element={<ChangePassword />} />
+                <Route path="/member-dashboard" element={<MemberDashboard />} />
+                <Route path="/problems" element={<Problems />} />
+                <Route path="/tasks" element={<Tasks />} />
+                <Route path="/notifications" element={<Notifications />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+            <Route element={<ProtectedRoute allowedRoles={['ngo_admin', 'ngo_member']} />}>
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/finance" element={<Finance />} />
+                <Route path="/insights" element={<Insights />} />
+                <Route path="/import" element={<DataImport />} />
+                <Route path="/team" element={<Team />} />
+              </Route>
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </FeedbackProvider>
     </ThemeProvider>
   )
 }
