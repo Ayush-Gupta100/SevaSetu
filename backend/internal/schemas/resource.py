@@ -26,6 +26,7 @@ class InventoryResponse(BaseModel):
 	quantity_total: float
 	quantity_available: float
 	location_id: Optional[int] = None
+	location_address: Optional[str] = None
 	created_at: datetime
 
 

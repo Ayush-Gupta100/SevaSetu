@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, Clock, MapPin, Search } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, MapPin, Search, User } from 'lucide-react'
 import { api } from '../lib/api'
 import { useFeedback } from '../lib/feedback'
 import { cn } from '../lib/utils'
@@ -19,6 +19,8 @@ export function Problems() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ title: '', description: '', category: '', address: '' })
   const [submitting, setSubmitting] = useState(false)
+
+  const isGeneralCategory = formData.category === 'general'
 
   const verifyAndCreateTaskMutation = useMutation({
     mutationFn: async (problem: any) => {
@@ -50,7 +52,13 @@ export function Problems() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const geo = await api.geocode({ address: formData.address })
+      const finalAddress = isGeneralCategory ? 'Pan India' : formData.address.trim()
+      if (!finalAddress) {
+        showError('Location is mandatory. Please enter an address.')
+        return
+      }
+
+      const geo = await api.geocode({ address: finalAddress, country: 'India' })
       await api.createProblem({
         title: formData.title,
         description: formData.description,
@@ -120,11 +128,15 @@ export function Problems() {
                 <div className="flex items-center gap-4 mt-3 text-sm text-muted">
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {problem.location?.address || problem.address || 'Unknown Location'}
+                    {problem.location_address || 'Unknown Location'}
                   </div>
                   <div className="flex items-center gap-1">
                     <AlertCircle className="w-4 h-4 text-red-400" />
                     Priority: {problem.priority_score || 0}/10
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <User className="w-4 h-4 text-primary" />
+                    Assigned To: {problem.assigned_to_name || 'Unassigned'}
                   </div>
                 </div>
               </div>
@@ -161,12 +173,13 @@ export function Problems() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted mb-1">Category</label>
-                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                <select required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value, address: e.target.value === 'general' ? 'Pan India' : formData.address})} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                   <option value="">Select Category</option>
                   <option value="infrastructure">Infrastructure</option>
                   <option value="health">Health</option>
                   <option value="education">Education</option>
                   <option value="environment">Environment</option>
+                  <option value="general">General</option>
                 </select>
               </div>
               <div>
@@ -174,8 +187,9 @@ export function Problems() {
                 <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary" rows={3}></textarea>
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted mb-1">Address/Location</label>
-                <input type="text" required value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Street, city, state" />
+                <label className="block text-sm font-medium text-muted mb-1">Address/Location (Mandatory)</label>
+                <input type="text" required value={isGeneralCategory ? 'Pan India' : formData.address} onChange={e => setFormData({...formData, address: e.target.value})} disabled={isGeneralCategory} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-70" placeholder="Street, city, state" />
+                {isGeneralCategory && <p className="text-xs text-muted mt-1">General tasks default to Pan India coverage.</p>}
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border border-border text-foreground font-medium rounded-lg hover:bg-white/5 transition-colors">

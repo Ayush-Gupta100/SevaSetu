@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from config.db import init_db
+from internal.problem_bootstrap import seed_and_assign_problems_on_startup
 from handlers.task_handler import run_pending_auto_assignment_checks
 from routes.routes import api_router
 
@@ -52,6 +53,27 @@ async def _auto_assignment_worker(interval_seconds: int) -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
 	init_db()
+	try:
+		seed_result = seed_and_assign_problems_on_startup()
+		logger.info(
+			"Problem startup bootstrap: reset=%s created=%s assigned=%s",
+			seed_result.get("reset"),
+			seed_result.get("created"),
+			seed_result.get("assigned"),
+		)
+	except Exception:
+		logger.exception("Problem startup bootstrap failed")
+
+	try:
+		startup_reassign_result = await asyncio.to_thread(run_pending_auto_assignment_checks)
+		logger.info(
+			"Startup reassignment pass: checked=%s assigned=%s",
+			startup_reassign_result.get("checked", 0),
+			startup_reassign_result.get("assigned", 0),
+		)
+	except Exception:
+		logger.exception("Startup reassignment pass failed")
+
 	interval_seconds = int(os.getenv("AUTO_ASSIGN_INTERVAL_SECONDS", "60"))
 	worker = asyncio.create_task(_auto_assignment_worker(max(10, interval_seconds)))
 	try:

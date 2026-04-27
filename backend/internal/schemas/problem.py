@@ -17,11 +17,14 @@ class ProblemResponse(BaseModel):
 	description: str
 	category: Optional[str] = None
 	location_id: int
+	location_address: Optional[str] = None
 	reported_by: int
 	status: str
 	priority_score: float
 	ai_category: Optional[str] = None
 	ai_confidence: Optional[float] = None
+	assigned_to_id: Optional[int] = None
+	assigned_to_name: Optional[str] = None
 	created_at: datetime
 
 

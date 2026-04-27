@@ -2,10 +2,11 @@ from fastapi import HTTPException, status
 
 from config.db import get_db
 from handlers.skills_survey_handler import upsert_user_skills
+from internal.geo_utils import pseudo_geocode
 from internal.notifications import create_notification
-from internal.schemas.ngo import AddNgoMemberByEmailRequest, AddNgoMemberRequest, NgoCreateRequest, NgoVerificationRequest
+from internal.schemas.ngo import AddNgoMemberByEmailRequest, AddNgoMemberRequest, NgoCreateRequest, NgoHqLocationRequest, NgoVerificationRequest
 from internal.security import hash_password
-from models.models import Ngo, NgoMember, Skill, User, UserSkill
+from models.models import Location, Ngo, NgoMember, Skill, User, UserSkill
 
 
 def register_ngo(payload: NgoCreateRequest, current_user: User):
@@ -68,6 +69,70 @@ def verify_ngo(ngo_id: int, payload: NgoVerificationRequest):
 		db.commit()
 		db.refresh(ngo)
 		return ngo
+
+
+def update_ngo_hq_location(ngo_id: int, payload: NgoHqLocationRequest, current_user: User):
+	with get_db() as db:
+		ngo = db.query(Ngo).filter(Ngo.id == ngo_id).first()
+		if not ngo:
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NGO not found.")
+
+		if current_user.ngo_id != ngo_id:
+			raise HTTPException(
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail="You can update headquarters only for your own NGO.",
+			)
+
+		lat, lon = pseudo_geocode(
+			", ".join(
+				[
+					payload.address,
+					payload.city or "",
+					payload.state or "",
+					payload.country or "India",
+					payload.pincode or "",
+				]
+			)
+		)
+
+		location = (
+			db.query(Location)
+			.filter(
+				Location.address == payload.address,
+				Location.city == payload.city,
+				Location.state == payload.state,
+				Location.country == payload.country,
+				Location.pincode == payload.pincode,
+			)
+			.first()
+		)
+
+		if not location:
+			location = Location(
+				latitude=lat,
+				longitude=lon,
+				address=payload.address,
+				city=payload.city,
+				state=payload.state,
+				country=payload.country,
+				pincode=payload.pincode,
+			)
+			db.add(location)
+			db.flush()
+
+		ngo.address = payload.address
+		ngo.city = payload.city
+		ngo.state = payload.state
+		db.add(ngo)
+
+		ngo_users = db.query(User).filter(User.ngo_id == ngo_id).all()
+		for user in ngo_users:
+			if user.location_id is None:
+				user.location_id = location.id
+				db.add(user)
+
+		db.commit()
+		return {"message": "NGO headquarters location updated successfully."}
 
 
 def add_ngo_member(ngo_id: int, payload: AddNgoMemberRequest, current_user: User):

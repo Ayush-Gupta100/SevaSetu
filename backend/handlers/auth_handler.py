@@ -4,7 +4,8 @@ from config.db import get_db
 from internal.schemas.auth import ChangePasswordRequest, LoginRequest, RegisterRequest, RegisterNgoRequest
 from internal.security import create_access_token, hash_password, verify_password
 from internal.token_blacklist import blacklist_token
-from models.models import User, Ngo, NgoMember
+from internal.geo_utils import pseudo_geocode
+from models.models import Location, User, Ngo, NgoMember
 
 
 TEMP_MEMBER_PASSWORD = "Welcome@123"
@@ -19,12 +20,31 @@ def register_user(payload: RegisterRequest):
 				detail="Email is already registered.",
 			)
 
+		location_id = None
+		if payload.role == "volunteer":
+			if payload.location_latitude is None or payload.location_longitude is None:
+				raise HTTPException(
+					status_code=status.HTTP_400_BAD_REQUEST,
+					detail="Volunteer location is mandatory. Please allow browser location access.",
+				)
+
+			location = Location(
+				latitude=payload.location_latitude,
+				longitude=payload.location_longitude,
+				address=payload.location_address or "Browser location",
+				country="India",
+			)
+			db.add(location)
+			db.flush()
+			location_id = location.id
+
 		user = User(
 			name=payload.name,
 			email=payload.email,
 			phone=payload.phone,
 			password_hash=hash_password(payload.password),
 			role=payload.role,
+			location_id=location_id,
 		)
 		db.add(user)
 		db.commit()
@@ -53,6 +73,16 @@ def register_ngo_with_admin(payload: RegisterNgoRequest):
 			raise HTTPException(status_code=400, detail="NGO with this registration number or email already exists.")
 
 		# 1. Create NGO
+		hq_lat, hq_lon = pseudo_geocode(payload.address or payload.ngo_name)
+		hq_location = Location(
+			latitude=hq_lat,
+			longitude=hq_lon,
+			address=payload.address,
+			country="India",
+		)
+		db.add(hq_location)
+		db.flush()
+
 		ngo = Ngo(
 			name=payload.ngo_name,
 			registration_number=payload.registration_number,
@@ -68,7 +98,8 @@ def register_ngo_with_admin(payload: RegisterNgoRequest):
 			email=payload.admin_email,
 			password_hash=hash_password(payload.admin_password),
 			role="ngo_admin",
-			ngo_id=ngo.id
+			ngo_id=ngo.id,
+			location_id=hq_location.id,
 		)
 		db.add(user)
 		db.flush()

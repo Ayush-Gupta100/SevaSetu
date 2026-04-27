@@ -10,6 +10,9 @@ class RegisterRequest(BaseModel):
 	phone: Optional[str] = None
 	password: str = Field(min_length=6, max_length=128)
 	role: Literal["community", "volunteer", "ngo_member", "ngo_admin"]
+	location_latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
+	location_longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
+	location_address: Optional[str] = Field(default=None, max_length=255)
 
 
 class RegisterNgoRequest(BaseModel):

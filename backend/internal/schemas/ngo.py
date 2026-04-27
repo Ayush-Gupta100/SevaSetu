@@ -33,6 +33,14 @@ class NgoVerificationRequest(BaseModel):
 	trust_score: Optional[float] = Field(default=None, ge=0.0, le=100.0)
 
 
+class NgoHqLocationRequest(BaseModel):
+	address: str = Field(min_length=3, max_length=255)
+	city: Optional[str] = Field(default=None, max_length=120)
+	state: Optional[str] = Field(default=None, max_length=120)
+	country: Optional[str] = Field(default="India", max_length=120)
+	pincode: Optional[str] = Field(default=None, max_length=20)
+
+
 class AddNgoMemberRequest(BaseModel):
 	user_id: int
 	role: Literal["admin", "manager", "field_worker"]

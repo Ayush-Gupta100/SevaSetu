@@ -11,6 +11,9 @@ export function Dashboard() {
   const { showError, showSuccess } = useFeedback()
   const storedId = localStorage.getItem('ngo_id');
   const ngoId = storedId && storedId !== 'null' ? parseInt(storedId, 10) : 0;
+  const [hqAddress, setHqAddress] = useState('')
+  const [hqCity, setHqCity] = useState('')
+  const [hqState, setHqState] = useState('')
 
   // 1. Fetch Wallet Data
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
@@ -108,6 +111,29 @@ export function Dashboard() {
       showError('Failed to add member: ' + (err.response?.data?.detail || err.message));
     }
   };
+
+  const handleUpdateHqLocation = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!ngoId) {
+      showError('NGO context not found.')
+      return
+    }
+
+    try {
+      await api.updateNgoHqLocation(ngoId.toString(), {
+        address: hqAddress,
+        city: hqCity || null,
+        state: hqState || null,
+        country: 'India',
+      })
+      showSuccess('NGO headquarters location updated successfully.')
+      setHqAddress('')
+      setHqCity('')
+      setHqState('')
+    } catch (err: any) {
+      showError('Failed to update NGO headquarters location: ' + (err.response?.data?.detail || err.message))
+    }
+  }
 
   return (
     <div className="space-y-6 pb-20">
@@ -235,7 +261,7 @@ export function Dashboard() {
           </div>
         </motion.div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -287,6 +313,60 @@ export function Dashboard() {
             </div>
             <button type="submit" className="w-full sm:w-auto px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition-colors">
               Add Member
+            </button>
+          </form>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.85, duration: 0.5 }}
+          className="glass rounded-2xl p-6"
+        >
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Set NGO HQ Location</h3>
+            <p className="text-xs text-muted mt-1">Used as fallback location for NGO members and resources.</p>
+          </div>
+
+          <form className="space-y-3" onSubmit={handleUpdateHqLocation}>
+            <div>
+              <label className="block text-sm font-medium text-muted mb-1">Address</label>
+              <input
+                type="text"
+                required
+                value={hqAddress}
+                onChange={(e) => setHqAddress(e.target.value)}
+                placeholder="Street, area"
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-muted mb-1">City</label>
+                <input
+                  type="text"
+                  value={hqCity}
+                  onChange={(e) => setHqCity(e.target.value)}
+                  placeholder="City"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted mb-1">State</label>
+                <input
+                  type="text"
+                  value={hqState}
+                  onChange={(e) => setHqState(e.target.value)}
+                  placeholder="State"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition-colors"
+            >
+              Save HQ Location
             </button>
           </form>
         </motion.div>

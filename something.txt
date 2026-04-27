@@ -374,3 +374,11 @@ GET /tasks?page=1&limit=10
 status
 location
 category
+
+
+also address of the volunteer should be mandatory fetch that from the browser location access and also how are you managing the location of the NGO ?? and its resources fix that to mak eit workable as well 
+
+
+
+
+

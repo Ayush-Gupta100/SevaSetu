@@ -20,6 +20,16 @@ class SkillResponse(BaseModel):
 	category: Optional[str] = None
 
 
+class UserSkillResponse(BaseModel):
+	skill_name: str
+	category: Optional[str] = None
+	proficiency_level: Optional[str] = None
+
+
+class SkillCategoryResponse(BaseModel):
+	name: str
+
+
 class SurveyRequest(BaseModel):
 	availability: Optional[str] = None
 	interests: Optional[str] = None

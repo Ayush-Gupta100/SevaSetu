@@ -7,9 +7,12 @@ import { api } from '../lib/api'
 export function MemberDashboard() {
   const role = localStorage.getItem('user_role')
   const canManageSkills = role === 'ngo_member' || role === 'volunteer'
-  const [skillsInput, setSkillsInput] = useState('')
-  const [skillCategory, setSkillCategory] = useState('General')
+  const [newSkillName, setNewSkillName] = useState('')
+  const [skillCategory, setSkillCategory] = useState('')
   const [proficiencyLevel, setProficiencyLevel] = useState('intermediate')
+  const [editingSkillName, setEditingSkillName] = useState<string | null>(null)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProficiency, setEditProficiency] = useState('intermediate')
   const [skillsMessage, setSkillsMessage] = useState('')
 
   const { data: tasksData } = useQuery({
@@ -24,11 +27,33 @@ export function MemberDashboard() {
     retry: 1,
   })
 
+  const { data: mySkillsData, refetch: refetchMySkills } = useQuery({
+    queryKey: ['my_skills'],
+    queryFn: api.getMySkills,
+    retry: 1,
+    enabled: canManageSkills,
+  })
+
+  const { data: categoryData } = useQuery({
+    queryKey: ['skill_categories'],
+    queryFn: api.getSkillCategories,
+    retry: 1,
+    enabled: canManageSkills,
+  })
+
+  const { data: allSkillsData } = useQuery({
+    queryKey: ['all_skills_catalog'],
+    queryFn: api.getSkills,
+    retry: 1,
+    enabled: canManageSkills,
+  })
+
   const addSkillsMutation = useMutation({
     mutationFn: (payload: any) => api.addUserSkills(payload),
     onSuccess: () => {
-      setSkillsInput('')
+      setNewSkillName('')
       setSkillsMessage('Skills saved successfully.')
+      refetchMySkills()
     },
     onError: (err: any) => {
       setSkillsMessage(err.response?.data?.detail || 'Failed to save skills.')
@@ -36,6 +61,17 @@ export function MemberDashboard() {
   })
 
   const tasks = tasksData || []
+  const mySkills = Array.isArray(mySkillsData) ? mySkillsData : []
+  const fetchedCategories = Array.isArray(categoryData)
+    ? categoryData.map((item: any) => item.name).filter((item: string) => !!item)
+    : []
+  const fetchedSkillNames = Array.isArray(allSkillsData)
+    ? allSkillsData.map((item: any) => item.name).filter((item: string) => !!item)
+    : []
+  const existingSkillNameSet = new Set(mySkills.map((skill: any) => skill.skill_name))
+  const selectableSkillNames = fetchedSkillNames.filter((name: string) => !existingSkillNameSet.has(name))
+  const availableCategories = fetchedCategories.length > 0 ? fetchedCategories : ['General']
+  const selectedCategory = skillCategory || availableCategories[0]
   const notifications = Array.isArray(notificationsData) ? notificationsData : []
   const recentNotifications = [...notifications]
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -48,23 +84,46 @@ export function MemberDashboard() {
     e.preventDefault()
     setSkillsMessage('')
 
-    const parsedSkills = skillsInput
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-
-    if (!parsedSkills.length) {
-      setSkillsMessage('Please enter at least one skill.')
+    const selectedSkill = newSkillName.trim()
+    if (!selectedSkill) {
+      setSkillsMessage('Please select a skill from the dropdown.')
       return
     }
 
     await addSkillsMutation.mutateAsync({
-      skills: parsedSkills.map((skillName) => ({
-        skill_name: skillName,
-        category: skillCategory,
-        proficiency_level: proficiencyLevel,
-      })),
+      skills: [
+        {
+          skill_name: selectedSkill,
+          category: selectedCategory,
+          proficiency_level: proficiencyLevel,
+        },
+      ],
     })
+  }
+
+  const startEditSkill = (skill: any) => {
+    setEditingSkillName(skill.skill_name)
+    setEditCategory(skill.category || availableCategories[0])
+    setEditProficiency(skill.proficiency_level || 'intermediate')
+    setSkillsMessage('')
+  }
+
+  const handleUpdateSkill = async () => {
+    if (!editingSkillName) {
+      return
+    }
+
+    await addSkillsMutation.mutateAsync({
+      skills: [
+        {
+          skill_name: editingSkillName,
+          category: editCategory || availableCategories[0],
+          proficiency_level: editProficiency,
+        },
+      ],
+    })
+
+    setEditingSkillName(null)
   }
 
   return (
@@ -144,25 +203,105 @@ export function MemberDashboard() {
       {canManageSkills && (
         <div className="glass rounded-xl p-5">
           <h2 className="text-lg font-semibold text-foreground/90">My Skills</h2>
-          <p className="text-sm text-muted mt-1">Add your skills so task assignment can better match your profile.</p>
+          <p className="text-sm text-muted mt-1">View and edit your skills using standardized categories for better task matching.</p>
+
+          <div className="mt-4 space-y-3">
+            {mySkills.length === 0 ? (
+              <div className="text-sm text-muted border border-border rounded-lg p-3">No skills added yet.</div>
+            ) : (
+              mySkills.map((skill: any) => (
+                <div key={skill.skill_name} className="border border-border rounded-lg p-3 bg-surface/40">
+                  {editingSkillName === skill.skill_name ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                      <div>
+                        <label className="block text-xs text-muted mb-1">Skill</label>
+                        <div className="text-sm font-medium text-foreground/90">{skill.skill_name}</div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted mb-1">Category</label>
+                        <select
+                          value={editCategory || availableCategories[0]}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {availableCategories.map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted mb-1">Proficiency</label>
+                        <select
+                          value={editProficiency}
+                          onChange={(e) => setEditProficiency(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="advanced">Advanced</option>
+                          <option value="expert">Expert</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-3 flex gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEditingSkillName(null)}
+                          className="px-3 py-1.5 rounded-md border border-border text-sm hover:bg-slate-100 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleUpdateSkill}
+                          disabled={addSkillsMutation.isPending}
+                          className="px-3 py-1.5 rounded-md bg-primary text-white text-sm hover:bg-primary-hover transition-colors disabled:opacity-50"
+                        >
+                          {addSkillsMutation.isPending ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground/90">{skill.skill_name}</p>
+                        <p className="text-xs text-muted">{skill.category || 'General'} • {skill.proficiency_level || 'intermediate'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditSkill(skill)}
+                        className="px-3 py-1.5 rounded-md border border-border text-sm hover:bg-slate-100 transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
 
           <form onSubmit={handleSaveSkills} className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              type="text"
-              value={skillsInput}
-              onChange={(e) => setSkillsInput(e.target.value)}
-              placeholder="e.g. First Aid, Logistics, Data Entry"
+            <select
+              value={newSkillName}
+              onChange={(e) => setNewSkillName(e.target.value)}
               className="md:col-span-2 w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               required
-            />
+            >
+              <option value="">Select Skill</option>
+              {selectableSkillNames.map((skillName) => (
+                <option key={skillName} value={skillName}>{skillName}</option>
+              ))}
+            </select>
 
-            <input
-              type="text"
-              value={skillCategory}
+            <select
+              value={selectedCategory}
               onChange={(e) => setSkillCategory(e.target.value)}
-              placeholder="Category"
               className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            >
+              {availableCategories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
 
             <select
               value={proficiencyLevel}
@@ -177,12 +316,18 @@ export function MemberDashboard() {
 
             <button
               type="submit"
-              disabled={addSkillsMutation.isPending}
+              disabled={addSkillsMutation.isPending || selectableSkillNames.length === 0}
               className="md:col-span-4 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50"
             >
-              {addSkillsMutation.isPending ? 'Saving...' : 'Save Skills'}
+              {addSkillsMutation.isPending ? 'Saving...' : 'Add Skill'}
             </button>
           </form>
+
+          {selectableSkillNames.length === 0 && (
+            <div className="mt-3 text-sm text-muted border border-border rounded-lg px-3 py-2">
+              No new skills available to add from the dropdown.
+            </div>
+          )}
 
           {skillsMessage && (
             <div className="mt-3 text-sm text-foreground bg-slate-100 border border-border rounded-lg px-3 py-2">{skillsMessage}</div>

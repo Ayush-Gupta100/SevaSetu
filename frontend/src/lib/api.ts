@@ -84,6 +84,7 @@ export const api = {
   getNgos: () => apiClient.get('/ngos').then(res => res.data),
   getNgo: (id: string) => apiClient.get(`/ngos/${id}`).then(res => res.data),
   verifyNgo: (id: string, data: any) => apiClient.patch(`/ngos/${id}/verify`, data).then(res => res.data),
+  updateNgoHqLocation: (id: string, data: any) => apiClient.patch(`/ngos/${id}/hq-location`, data).then(res => res.data),
   addNgoMember: (id: string, data: any) => apiClient.post(`/ngos/${id}/members`, data).then(res => res.data),
   addNgoMemberByEmail: (id: string, data: any) => apiClient.post(`/ngos/${id}/members/by-email`, data).then(res => res.data),
   getNgoMembers: (id: string) => apiClient.get(`/ngos/${id}/members`).then(res => res.data),
@@ -109,7 +110,9 @@ export const api = {
 
   // --- SKILLS & SURVEY ---
   addUserSkills: (data: any) => apiClient.post('/users/skills', data).then(res => res.data),
+  getMySkills: () => apiClient.get('/users/skills/me').then(res => res.data),
   getSkills: () => apiClient.get('/skills').then(res => res.data),
+  getSkillCategories: () => apiClient.get('/skills/categories').then(res => res.data),
   submitSurvey: (data: any) => apiClient.post('/surveys', data).then(res => res.data),
 
   // --- RESOURCES ---

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from handlers.ngo_handler import add_ngo_member, add_ngo_member_by_email, get_ngo_details, list_ngos, register_ngo, verify_ngo
+from handlers.ngo_handler import add_ngo_member, add_ngo_member_by_email, get_ngo_details, list_ngos, register_ngo, update_ngo_hq_location, verify_ngo
 from internal.auth_dependencies import get_current_user, require_roles
 from internal.schemas.ngo import (
 	AddNgoMemberRequest,
@@ -8,6 +8,7 @@ from internal.schemas.ngo import (
 	AddNgoMemberByEmailResponse,
 	MessageResponse,
 	NgoCreateRequest,
+	NgoHqLocationRequest,
 	NgoResponse,
 	NgoVerificationRequest,
 )
@@ -42,6 +43,15 @@ def verify_ngo_route(
 	current_user=Depends(require_roles("ngo_admin")),
 ):
 	return verify_ngo(ngo_id, payload)
+
+
+@ngo_router.patch("/{ngo_id}/hq-location", response_model=MessageResponse)
+def update_ngo_hq_location_route(
+	ngo_id: int,
+	payload: NgoHqLocationRequest,
+	current_user=Depends(require_roles("ngo_admin", "ngo_member")),
+):
+	return update_ngo_hq_location(ngo_id, payload, current_user)
 
 
 @ngo_router.post("/{ngo_id}/members", response_model=MessageResponse)

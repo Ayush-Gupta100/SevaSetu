@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Package, Activity } from 'lucide-react'
+import { Package } from 'lucide-react'
 import { api } from '../lib/api'
 import { useFeedback } from '../lib/feedback'
 
@@ -10,20 +10,22 @@ export function Inventory() {
   const inventory = Array.isArray(data) ? data : []
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({ resource_type_id: 1, quantity_total: '' })
+  const [formData, setFormData] = useState({ resource_type_id: 1, quantity_total: '', address: '' })
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
     try {
+      const geo = await api.geocode({ address: formData.address, country: 'India' })
       await api.addInventory({
         resource_type_id: formData.resource_type_id,
-        quantity_total: parseFloat(formData.quantity_total)
+        quantity_total: parseFloat(formData.quantity_total),
+        location_id: geo.location_id,
       })
       showSuccess('Resource added successfully!')
       setIsModalOpen(false)
-      setFormData({ resource_type_id: 1, quantity_total: '' })
+      setFormData({ resource_type_id: 1, quantity_total: '', address: '' })
       refetch()
     } catch (err: any) {
       showError('Failed to add resource: ' + (err.response?.data?.detail || err.message))
@@ -93,7 +95,7 @@ export function Inventory() {
                     <span className="text-muted text-xs">{item.unit || 'units'}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-muted">{item.location || 'Warehouse'}</td>
+                <td className="px-6 py-4 text-muted">{item.location_address || 'Unknown Location'}</td>
                 <td className="px-6 py-4 text-right">
                   <button className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs transition-colors">
                     Allocate
@@ -118,6 +120,10 @@ export function Inventory() {
               <div>
                 <label className="block text-sm font-medium text-muted mb-1">Total Quantity</label>
                 <input type="number" step="0.01" required value={formData.quantity_total} onChange={e => setFormData({...formData, quantity_total: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="100" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted mb-1">Resource Location Address (Mandatory)</label>
+                <input type="text" required value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Street, city, state" />
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border border-border text-foreground font-medium rounded-lg hover:bg-white/5 transition-colors">

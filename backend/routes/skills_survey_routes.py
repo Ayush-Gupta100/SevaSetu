@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends
 
-from handlers.skills_survey_handler import add_user_skills, get_skills, submit_survey
+from handlers.skills_survey_handler import add_user_skills, get_skill_categories, get_skills, get_user_skills, submit_survey
 from internal.auth_dependencies import get_current_user
 from internal.schemas.skills_survey import (
 	AddUserSkillsRequest,
 	MessageResponse,
+	SkillCategoryResponse,
 	SkillResponse,
 	SurveyRequest,
 	SurveyResponse,
+	UserSkillResponse,
 )
 
 
@@ -22,6 +24,16 @@ def add_user_skills_route(payload: AddUserSkillsRequest, current_user=Depends(ge
 @skills_survey_router.get("/skills", response_model=list[SkillResponse])
 def get_skills_route(current_user=Depends(get_current_user)):
 	return get_skills()
+
+
+@skills_survey_router.get("/users/skills/me", response_model=list[UserSkillResponse])
+def get_user_skills_route(current_user=Depends(get_current_user)):
+	return get_user_skills(current_user)
+
+
+@skills_survey_router.get("/skills/categories", response_model=list[SkillCategoryResponse])
+def get_skill_categories_route(current_user=Depends(get_current_user)):
+	return get_skill_categories()
 
 
 @skills_survey_router.post("/surveys", response_model=SurveyResponse)

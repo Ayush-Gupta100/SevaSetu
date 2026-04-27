@@ -8,10 +8,21 @@ export function Register() {
   const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(false)
+  const [fetchingLocation, setFetchingLocation] = useState(false)
   const [error, setError] = useState('')
   const [role, setRole] = useState<'volunteer' | 'ngo'>('volunteer')
   const [addressHint, setAddressHint] = useState('')
-  const [formData, setFormData] = useState({ name: '', ngoName: '', registration_number: '', email: '', password: '', address: '' })
+  const [formData, setFormData] = useState({
+    name: '',
+    ngoName: '',
+    registration_number: '',
+    email: '',
+    password: '',
+    address: '',
+    locationLatitude: '' as string | number,
+    locationLongitude: '' as string | number,
+    locationAddress: '',
+  })
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -44,6 +55,37 @@ export function Register() {
     }
   }
 
+  const handleFetchBrowserLocation = async () => {
+    if (!navigator.geolocation) {
+      setError('Browser geolocation is not supported on this device.')
+      return
+    }
+
+    setFetchingLocation(true)
+    setError('')
+    setAddressHint('')
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6))
+        const longitude = Number(position.coords.longitude.toFixed(6))
+        setFormData((prev) => ({
+          ...prev,
+          locationLatitude: latitude,
+          locationLongitude: longitude,
+          locationAddress: `Lat ${latitude}, Lon ${longitude}`,
+        }))
+        setAddressHint('Location captured from browser successfully.')
+        setFetchingLocation(false)
+      },
+      () => {
+        setError('Location permission is required for volunteer registration.')
+        setFetchingLocation(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -62,11 +104,18 @@ export function Register() {
         })
       } else {
         // Standard Volunteer Registration
+        if (!formData.locationLatitude || !formData.locationLongitude) {
+          throw new Error('Please allow browser location access to register as volunteer.')
+        }
+
         await api.register({ 
           name: formData.name, 
           email: formData.email, 
           password: formData.password, 
-          role: 'volunteer' 
+          role: 'volunteer',
+          location_latitude: Number(formData.locationLatitude),
+          location_longitude: Number(formData.locationLongitude),
+          location_address: formData.locationAddress,
         })
       }
 
@@ -178,6 +227,28 @@ export function Register() {
                   placeholder="Street, city, state"
                 />
                 {addressHint && <p className="mt-1 text-xs text-muted">{addressHint}</p>}
+              </div>
+            )}
+
+            {role === 'volunteer' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">Current Location (Mandatory)</label>
+                <button
+                  type="button"
+                  onClick={handleFetchBrowserLocation}
+                  disabled={fetchingLocation}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-slate-100 transition-colors disabled:opacity-50"
+                >
+                  {fetchingLocation ? 'Fetching location...' : 'Use Browser Location'}
+                </button>
+                <input
+                  type="text"
+                  value={formData.locationAddress}
+                  readOnly
+                  required
+                  className="appearance-none block w-full px-3 py-2 border border-border rounded-lg shadow-sm placeholder-muted focus:outline-none sm:text-sm bg-background text-foreground"
+                  placeholder="Location will be captured from browser"
+                />
               </div>
             )}
 
