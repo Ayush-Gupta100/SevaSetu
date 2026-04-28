@@ -94,7 +94,7 @@ def get_tasks(
 		for t in tasks:
 			active_assignment = db.query(TaskAssignment).filter(
 				TaskAssignment.task_id == t.id,
-				TaskAssignment.status.in_(["assigned", "accepted", "in_progress"])
+				TaskAssignment.status.in_(["assigned", "accepted"])
 			).first()
 			
 			t_dict = t.__dict__.copy()
