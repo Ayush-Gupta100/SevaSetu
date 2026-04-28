@@ -4,3 +4,5 @@ backend/venv
 // something.txt  // to be removed at end
 EVERYTHING.md
 something.txt
+index.html
+backend/seed_database.py

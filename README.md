@@ -78,7 +78,7 @@ Impact Measurement (Real-Time Analytics)
 ## 🤖 AI Integration (The Differentiator)
 
 ### Problem Intelligence
-- **Categorization**: Auto-tags problems (health, infrastructure, education, etc.) using Groq LLaMA
+- **Categorization**: Auto-tags problems (health, infrastructure, education, etc.) using Gemini
 - **Urgency Detection**: Prioritizes critical issues using NLP
 - **Duplicate Finding**: Prevents redundant task creation
 
@@ -197,7 +197,7 @@ Serverless architecture scales with demand; costs stay low.
 - SQLAlchemy ORM + PostgreSQL for data integrity
 - Real-time matching algorithm (haversine distance, skill-based)
 - JWT authentication + role-based access control
-- Groq AI integration for intelligent categorization
+- Gemini AI integration for intelligent categorization
 - Clean, modular code structure with async support
 
 ### ✅ **User Experience (10%)**
