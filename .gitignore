@@ -1,3 +1,4 @@
 backend/.env
 backend/.venv
+backend/venv
 // something.txt  // to be removed at end
